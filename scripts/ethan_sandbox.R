@@ -50,7 +50,7 @@ null_model <- lmer(total_UPDRS ~ 1 + (1 | subject), data = pd)
 vc <- as.data.frame(VarCorr(null_model))$vcov
 vc[1] / sum(vc)
 
-# Voice measures
+# Voice measures; check each measure the variance/distribution
 # Skewed, so log-transform and standardise
 for (v in voice_vars) {
   pd[[v]] <- as.numeric(scale(log(pd[[v]])))
