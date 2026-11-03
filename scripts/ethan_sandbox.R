@@ -1,6 +1,4 @@
 # Exploratory analysis of the Parkinson's Telemonitoring data
-# Run from the project root
-
 library(dplyr)
 library(tidyr)
 library(ggplot2)
@@ -33,15 +31,15 @@ summary(pd)
 summary(as.vector(table(pd$subject)))  # recordings per patient
 
 # One row per patient
-patients <- pd %>%
-  group_by(subject, age, sex) %>%
+patients <- pd |> 
+  group_by(subject, age, sex) |> 
   summarise(motor_mean = mean(motor_UPDRS),
             total_mean = mean(total_UPDRS),
             .groups = "drop")
 
 table(patients$sex)
 
-# ---- UPDRS over time ----
+# UPDRS over time
 ggplot(pd, aes(test_time, total_UPDRS, group = subject, colour = sex)) +
   geom_line() +
   labs(title = "Total UPDRS over the trial", x = "Days", y = "Total UPDRS")
@@ -52,14 +50,14 @@ null_model <- lmer(total_UPDRS ~ 1 + (1 | subject), data = pd)
 vc <- as.data.frame(VarCorr(null_model))$vcov
 vc[1] / sum(vc)
 
-# ---- Voice measures ----
+# Voice measures
 # Skewed, so log-transform and standardise
 for (v in voice_vars) {
   pd[[v]] <- as.numeric(scale(log(pd[[v]])))
 }
 
-pd %>%
-  pivot_longer(all_of(voice_vars), names_to = "measure", values_to = "value") %>%
+pd |> 
+  pivot_longer(all_of(voice_vars), names_to = "measure", values_to = "value") |> 
   ggplot(aes(value)) +
   geom_histogram(bins = 40) +
   facet_wrap(~measure)
@@ -67,7 +65,7 @@ ggsave("output/eda/voice_histograms.png", width = 10, height = 6)
 
 round(cor(pd[, c(outcomes, voice_vars)]), 2)
 
-# ---- Aim 1: voice measures vs UPDRS ----
+# Aim 1: voice measures vs UPDRS; consulted Claude help for this
 # One mixed model per voice measure, with a random intercept per patient
 aim1 <- data.frame()
 
@@ -85,9 +83,9 @@ for (y in outcomes) {
 }
 
 # Adjust p-values for testing 11 measures per outcome
-aim1 <- aim1 %>%
-  group_by(outcome) %>%
-  mutate(p_adj = p.adjust(p, method = "BH")) %>%
+aim1 <- aim1 |> 
+  group_by(outcome) |> 
+  mutate(p_adj = p.adjust(p, method = "BH"))  |> 
   ungroup()
 aim1
 
@@ -100,8 +98,8 @@ ggplot(aim1, aes(estimate, measure)) +
 ggsave("output/eda/aim1_effects.png", width = 8, height = 5)
 
 # Patient averages: do patients with worse voices have higher UPDRS?
-patient_voice <- pd %>%
-  group_by(subject) %>%
+patient_voice <- pd |> 
+  group_by(subject) |> 
   summarise(shimmer_db = mean(shimmer_db), total_UPDRS = mean(total_UPDRS))
 
 ggplot(patient_voice, aes(shimmer_db, total_UPDRS)) +
@@ -110,7 +108,8 @@ ggplot(patient_voice, aes(shimmer_db, total_UPDRS)) +
   labs(title = "Patient-average shimmer (dB) vs total UPDRS")
 ggsave("output/eda/aim1_patient_shimmer.png", width = 6, height = 4)
 
-# ---- Aim 2: age and sex vs UPDRS ----
+# Aim 2: age and sex vs UPDRS
+# line plot vs box plot
 ggplot(patients, aes(age, total_mean, colour = sex)) +
   geom_point() +
   geom_smooth(method = "lm", se = FALSE) +
