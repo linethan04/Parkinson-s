@@ -1,0 +1,191 @@
+---
+title: "Parkinson's Voice Project: Data Wrangling"
+output: html_document
+date: "2026-10-08"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+We're using two Parkinson's disease (PD) voice datasets from UCI. `pad.df` follows 42 people with PD at home and has their UPDRS scores. `puc.df` has both PD and healthy people, but no UPDRS. There's no shared ID between them, so we can't join them. We clean each one on its own and give the voice measures the same names.
+
+## Load the data
+
+```{r load, message=FALSE}
+library(tidyverse)
+
+pad.df <- read_csv("parkinsons_updrs.data", show_col_types = FALSE)
+puc.df <- read_csv("parkinsons/parkinsons.data", show_col_types = FALSE)
+```
+
+## Quick checks
+
+Neither dataset has missing values or duplicate rows, so there's nothing to fix here.
+
+```{r checks}
+dim(pad.df)
+dim(puc.df)
+
+sum(is.na(pad.df))
+sum(is.na(puc.df))
+
+sum(duplicated(pad.df))
+sum(duplicated(puc.df))
+```
+
+## Clean pad.df
+
+We keep the subject, age, sex, time, both UPDRS scores, and the jitter, shimmer and noise measures from our proposal.
+
+```{r clean-pad}
+pad_clean <- pad.df %>%
+  transmute(
+    subject       = `subject#`,
+    age,
+    sex           = if_else(sex == 0, "male", "female"),
+    test_time,
+    motor_updrs   = motor_UPDRS,
+    total_updrs   = total_UPDRS,
+    jitter_pct    = `Jitter(%)`,
+    jitter_abs    = `Jitter(Abs)`,
+    jitter_rap    = `Jitter:RAP`,
+    jitter_ppq5   = `Jitter:PPQ5`,
+    shimmer       = Shimmer,
+    shimmer_db    = `Shimmer(dB)`,
+    shimmer_apq3  = `Shimmer:APQ3`,
+    shimmer_apq5  = `Shimmer:APQ5`,
+    shimmer_apq11 = `Shimmer:APQ11`,
+    nhr           = NHR,
+    hnr           = HNR
+  )
+
+head(pad_clean)
+```
+
+## Clean puc.df
+
+We pull the subject out of `name` (`phon_R01_S01_1` is subject `S01`), label each person as PD or healthy, and keep the same voice measures as `pad_clean`.
+
+```{r clean-puc}
+puc_clean <- puc.df %>%
+  transmute(
+    subject       = str_extract(name, "S\\d{2}"),
+    group         = if_else(status == 0, "healthy", "PD"),
+    jitter_pct    = `MDVP:Jitter(%)`,
+    jitter_abs    = `MDVP:Jitter(Abs)`,
+    jitter_rap    = `MDVP:RAP`,
+    jitter_ppq5   = `MDVP:PPQ`,
+    shimmer       = `MDVP:Shimmer`,
+    shimmer_db    = `MDVP:Shimmer(dB)`,
+    shimmer_apq3  = `Shimmer:APQ3`,
+    shimmer_apq5  = `Shimmer:APQ5`,
+    shimmer_apq11 = `MDVP:APQ`,
+    nhr           = NHR,
+    hnr           = HNR
+  )
+
+head(puc_clean)
+```
+
+## New variables
+
+### Voice scores
+
+The jitter measures are nearly the same signal, and so are the shimmer measures. We z-score each measure and average them into one score per group, which gives us 3 things to test instead of 11. HNR gets flipped because a higher HNR means a cleaner voice, and we want higher scores to always mean a worse voice.
+
+Scores are z-scored within each dataset, so 0 means "average for that dataset". That means a `pad_clean` score can't be compared directly with a `puc_clean` score.
+
+```{r voice-scores}
+add_voice_scores <- function(data) {
+  data %>%
+    mutate(
+      jitter_score  = rowMeans(scale(across(starts_with("jitter")))),
+      shimmer_score = rowMeans(scale(across(starts_with("shimmer")))),
+      noise_score   = rowMeans(scale(cbind(nhr, -hnr)))
+    )
+}
+
+pad_clean <- add_voice_scores(pad_clean)
+puc_clean <- add_voice_scores(puc_clean)
+```
+
+### Between-person and within-person voice
+
+We split each voice score into two parts. `_person` is that person's usual level, and `_diff` is how far one recording sits from it. This lets us ask two different questions: do people with worse voices have worse UPDRS, and when someone's voice gets worse, does their own UPDRS go up?
+
+```{r between-within}
+pad_clean <- pad_clean %>%
+  group_by(subject) %>%
+  mutate(
+    jitter_person  = mean(jitter_score),
+    jitter_diff    = jitter_score - jitter_person,
+    shimmer_person = mean(shimmer_score),
+    shimmer_diff   = shimmer_score - shimmer_person,
+    noise_person   = mean(noise_score),
+    noise_diff     = noise_score - noise_person
+  ) %>%
+  ungroup()
+```
+
+### Progression groups
+
+Age and sex don't change between recordings, so Aim 2 needs one row per person. `pad_people` has each person's average UPDRS and how much their motor UPDRS changed from first to last recording. We call a change of 2.5 points or more meaningful, which is the minimal clinically important difference for motor UPDRS from Shulman et al. (2010).
+
+```{r progression}
+pad_people <- pad_clean %>%
+  arrange(subject, test_time) %>%
+  group_by(subject) %>%
+  summarise(
+    age              = first(age),
+    sex              = first(sex),
+    mean_motor_updrs = mean(motor_updrs),
+    mean_total_updrs = mean(total_updrs),
+    motor_change     = last(motor_updrs) - first(motor_updrs)
+  ) %>%
+  mutate(
+    progression = case_when(
+      motor_change >= 2.5  ~ "worsened",
+      motor_change <= -2.5 ~ "improved",
+      TRUE                 ~ "stable"
+    )
+  )
+
+count(pad_people, progression)
+```
+
+## Save
+
+```{r save}
+dir.create("data", showWarnings = FALSE)
+
+write_csv(pad_clean, "data/pad_clean.csv")
+write_csv(puc_clean, "data/puc_clean.csv")
+write_csv(pad_people, "data/pad_people.csv")
+```
+
+## What we changed and why
+
+- **Dropped `Jitter:DDP` and `Shimmer:DDA`.** They're just 3 times `Jitter:RAP` and `Shimmer:APQ3`, so they add nothing.
+- **Dropped RPDE, DFA and PPE.** They aren't in our proposal, and DFA looks different between the two datasets.
+- **Dropped the `puc.df`-only columns.** `pad.df` has no match for the pitch columns, `spread1`, `spread2` or `D2`.
+- **Kept the 12 rows with a negative `test_time`.** They're two sessions from a few days before recruitment, and their UPDRS scores look normal.
+- **Used the real counts for `puc.df`.** Its documentation says 31 people, but the file has 32 (24 PD, 8 healthy).
+- **Added voice scores.** Fewer tests, and each score is easier to explain than 11 similar columns.
+- **Split voice into `_person` and `_diff`.** Telling apart differences between people from changes within a person is what matters for home monitoring.
+- **Added `pad_people` with progression groups.** Aim 2 needs one row per person, and the groups use a published cutoff, not one we made up.
+
+Keep in mind that UPDRS is interpolated between clinic visits, so the `_diff` variables and `motor_change` rest on only a few real measurements per person.
+
+One thing to double-check: the docs don't say that `MDVP:PPQ` is the same as `Jitter:PPQ5`, or `MDVP:APQ` the same as `Shimmer:APQ11`. The values look similar, but we should confirm this in Little et al. (2009).
+
+## Next steps
+
+Each person has many recordings, so those recordings aren't independent. Each aim below deals with that.
+
+| Aim | Statistical analysis | Plot |
+|---|---|---|
+| 1. Voice and UPDRS | Mixed-effects models (`lmer`) with a random effect for subject and `test_time` included, for motor and total UPDRS. Test each voice score, using its `_person` and `_diff` parts in the same model. Correct for multiple testing. | Forest plot of between-person vs within-person effects; UPDRS over time for a few example people |
+| 2. Age and sex | Use `pad_people` (n = 42) to regress mean UPDRS on age and sex, then compare age and sex across progression groups. | Scatterplot of UPDRS vs age, colored by sex; bar chart of progression groups |
+| 3. Prediction | Predict UPDRS from the 11 voice measures. Compare a random row split with leave-one-subject-out using mean absolute error, against a baseline that always predicts the average. | Bar chart of error by method; predicted vs actual UPDRS |
+| 4. PD vs healthy | Average the voice scores to one row per person (n = 32), then compare groups one score at a time (Wilcoxon test). Correct for multiple testing. | Boxplots of each voice score by group |
