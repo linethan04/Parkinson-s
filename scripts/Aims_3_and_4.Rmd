@@ -1,0 +1,576 @@
+---
+title: "Parkinson's Voice Data: Aims 3 and 4"
+subtitle: "Predicting UPDRS and comparing PD with healthy participants"
+output: html_document
+---
+
+# Setup
+
+Install these packages once in the R Console:
+
+install.packages(c("tidyverse", "ranger", "rmarkdown"))
+
+This file reads Jason's cleaned files from the repository's `data` folder:
+`data/pad_clean.csv` and `data/puc_clean.csv`. All paths start from the main
+repository folder.
+
+- First open **`Parkinson-s.Rproj`** (File > Open Project), so R starts in the
+  main repository folder.
+- Then click **Knit**, or run the code line by line.
+
+```{r setup}
+# Knit from the main repository folder, the same place R starts when the project is open
+knitr::opts_knit$set(root.dir = "..")
+
+library(tidyverse)
+library(ranger)
+
+set.seed(2026)
+theme_set(theme_minimal(base_size = 12))
+
+colours <- c(
+  "Random rows" = "#2878a0",
+  "New person" = "#d16b35",
+  "Healthy" = "#2878a0",
+  "PD" = "#d16b35"
+)
+
+out_dir <- "output/aims_3_4"     # tables and plots are saved here
+```
+
+# Input: Jason's wrangled data
+
+Jason's `PD.PROJECT.Rmd` owns data cleaning and score construction. This analysis
+reads its exported CSVs directly. It does not recreate or overwrite his scores.
+PAD is used for Aim 3 and PUC for Aim 4. The datasets remain separate.
+
+```{r load-jasons-data}
+dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+
+pad_clean <- read.csv("data/pad_clean.csv")
+puc_clean <- read.csv("data/puc_clean.csv")
+
+# Display labels only: Jason exports "healthy" and "PD".
+puc_clean <- puc_clean |>
+  mutate(group = factor(tolower(group),
+                        levels = c("healthy", "pd"),
+                        labels = c("Healthy", "PD")))
+
+voice_vars <- c(
+  "jitter_pct", "jitter_abs", "jitter_rap", "jitter_ppq5",
+  "shimmer", "shimmer_db", "shimmer_apq3", "shimmer_apq5",
+  "shimmer_apq11", "nhr", "hnr"
+)
+
+data_summary <- tibble(
+  dataset = c("PAD", "PUC"),
+  recordings = c(nrow(pad_clean), nrow(puc_clean)),
+  people = c(n_distinct(pad_clean$subject), n_distinct(puc_clean$subject))
+)
+print(data_summary)
+print(puc_clean |> distinct(subject, group) |> count(group))
+```
+
+The expected sample sizes are 5,875 recordings from 42 PAD participants and
+195 recordings from 32 PUC subject IDs (24 PD and 8 healthy). The PUC source
+documentation lists 31 people; this workflow follows the IDs in the actual file.
+
+Jitter, shimmer and noise scores are Jason's averages of standardized raw voice
+measures. Higher scores indicate worse voice quality. HNR is reversed in his
+noise score. The primary Aim 4 analysis uses those original scores unchanged.
+The later `pd_figures.R` uses different, logged scores and is not the source of
+this workflow's primary Aim 4 results.
+
+# Aim 3: Predict UPDRS from voice
+
+## Question
+
+Can voice measures predict UPDRS for a person the model has never seen?
+
+We compare:
+
+1. **Mean baseline:** predicts the training-set average UPDRS.
+2. **Linear regression:** uses the 11 voice measures.
+3. **Random forest:** uses the same 11 measures.
+
+We evaluate each model using:
+
+- **Random rows:** five shuffled folds. The same person can contribute
+  recordings to both training and testing.
+- **New person:** leave one person out. Train on 41 people and predict the
+  remaining person, repeating for all 42 people.
+
+The new-person design is more relevant when predicting severity for someone
+absent from the training data.
+
+## Prepare the predictors
+
+We log the ten voice measures other than HNR, following the repository's
+prediction analysis. HNR is already expressed in decibels.
+We exclude subject ID and both UPDRS outcomes from the predictors.
+
+```{r prediction-data}
+models <- c("Mean baseline", "Linear regression", "Random forest")
+outcome_names <- c(motor_updrs = "Motor UPDRS", total_updrs = "Total UPDRS")
+
+pred_data <- pad_clean |>
+  select(subject, motor_updrs, total_updrs, all_of(voice_vars)) |>
+  mutate(across(all_of(setdiff(voice_vars, "hnr")), log))
+
+set.seed(2026)
+folds <- list(
+  "Random rows" = sample(rep(1:5, length.out = nrow(pred_data))),
+  "New person" = match(pred_data$subject, unique(pred_data$subject))
+)
+```
+
+## Fit and test the models
+
+Every recording receives a held-out prediction in each testing design.
+The baseline uses only the training data.
+
+```{r aim3-models}
+cross_validate <- function(outcome, scheme) {
+  fold <- folds[[scheme]]
+  model_formula <- reformulate(voice_vars, response = outcome)
+
+  predictions <- matrix(
+    NA_real_,
+    nrow = nrow(pred_data),
+    ncol = length(models),
+    dimnames = list(NULL, models)
+  )
+
+  for (k in unique(fold)) {
+    test <- fold == k
+    training <- pred_data[!test, ]
+    testing <- pred_data[test, ]
+
+    linear_model <- lm(model_formula, data = training)
+
+    forest_model <- ranger(
+      model_formula,
+      data = training,
+      num.trees = 200,
+      mtry = 3,
+      min.node.size = 5,
+      seed = 2026,
+      num.threads = 2
+    )
+
+    predictions[test, "Mean baseline"] <- mean(training[[outcome]])
+    predictions[test, "Linear regression"] <-
+      predict(linear_model, newdata = testing)
+    predictions[test, "Random forest"] <-
+      predict(forest_model, data = testing)$predictions
+  }
+
+  as_tibble(predictions) |>
+    mutate(
+      recording = seq_len(nrow(pred_data)),
+      subject = pred_data$subject,
+      actual = pred_data[[outcome]],
+      outcome = outcome,
+      scheme = scheme,
+      fold = fold
+    ) |>
+    pivot_longer(
+      cols = all_of(models),
+      names_to = "model",
+      values_to = "predicted"
+    )
+}
+
+aim3_predictions <- expand_grid(
+  outcome = c("motor_updrs", "total_updrs"),
+  scheme = names(folds)
+) |>
+  pmap(cross_validate) |>
+  bind_rows()
+
+print(head(aim3_predictions))
+write_csv(aim3_predictions, file.path(out_dir, "aim3_predictions.csv"))
+```
+
+## Calculate prediction errors
+
+Mean absolute error, or MAE, measures the average distance between predicted
+and actual UPDRS in UPDRS points. **Lower MAE means better prediction.**
+
+The main MAE gives each recording equal weight. The equal-person MAE first
+averages errors within each person, then averages across people.
+
+```{r aim3-errors}
+aim3_predictions <- aim3_predictions |>
+  mutate(absolute_error = abs(actual - predicted))
+
+person_errors <- aim3_predictions |>
+  group_by(outcome, scheme, model, subject) |>
+  summarise(person_mae = mean(absolute_error), .groups = "drop")
+
+equal_person_errors <- person_errors |>
+  group_by(outcome, scheme, model) |>
+  summarise(equal_person_mae = mean(person_mae), .groups = "drop")
+
+aim3_errors <- aim3_predictions |>
+  group_by(outcome, scheme, model) |>
+  summarise(mae = mean(absolute_error), .groups = "drop") |>
+  left_join(equal_person_errors, by = c("outcome", "scheme", "model")) |>
+  mutate(
+    outcome = unname(outcome_names[outcome]),
+    scheme = factor(scheme, levels = names(folds)),
+    model = factor(model, levels = models)
+  )
+
+print(as.data.frame(aim3_errors), row.names = FALSE)
+write_csv(aim3_errors, file.path(out_dir, "aim3_errors.csv"))
+```
+
+## Compare each model with the baseline
+
+A negative difference means the model has a smaller error than the baseline.
+A positive difference means it has a larger error.
+
+```{r aim3-baseline-comparison}
+baseline_errors <- aim3_errors |>
+  filter(model == "Mean baseline") |>
+  select(outcome, scheme, baseline_mae = mae)
+
+model_comparison <- aim3_errors |>
+  filter(model != "Mean baseline") |>
+  left_join(baseline_errors, by = c("outcome", "scheme")) |>
+  mutate(difference_from_baseline = mae - baseline_mae) |>
+  select(outcome, scheme, model, mae, baseline_mae, difference_from_baseline)
+
+print(as.data.frame(model_comparison), row.names = FALSE)
+```
+
+## Plot the prediction errors
+
+```{r aim3-error-plot, fig.width=10, fig.height=5}
+error_plot <- ggplot(aim3_errors, aes(model, mae, fill = scheme)) +
+  geom_col(position = position_dodge(0.8), width = 0.7) +
+  geom_text(
+    aes(label = sprintf("%.2f", mae)),
+    position = position_dodge(0.8), vjust = -0.5, size = 3.5
+  ) +
+  facet_wrap(~ outcome) +
+  scale_fill_manual(values = colours) +
+  scale_x_discrete(labels = c(
+    "Mean baseline" = "Mean\nbaseline",
+    "Linear regression" = "Linear\nregression",
+    "Random forest" = "Random\nforest"
+  )) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.12))) +
+  labs(
+    title = "Aim 3: Prediction errors",
+    subtitle = "Lower is better. Compare models within the same colour.",
+    x = NULL,
+    y = "Mean absolute error (UPDRS points)",
+    fill = "Test design"
+  ) +
+  theme(legend.position = "bottom", panel.grid.major.x = element_blank())
+
+print(error_plot)
+ggsave(file.path(out_dir, "aim3_error.png"), error_plot,
+       width = 10, height = 5, dpi = 300)
+```
+
+**How to explain the plot:**
+
+- Blue bars show random recording folds.
+- Orange bars show predictions for entirely new people.
+- Compare each voice model with the baseline of the same colour.
+- These bars show point estimates, without uncertainty intervals.
+
+## Aim 3 results
+
+The following results are calculated from this run, rather than typed in manually.
+MAE is measured in UPDRS points and weights recordings equally.
+
+```{r aim3-results-text, results='asis'}
+get_mae <- function(outcome_label, design, model_label) {
+  aim3_errors |>
+    filter(outcome == outcome_label, scheme == design, model == model_label) |>
+    pull(mae)
+}
+
+for (outcome_label in unname(outcome_names)) {
+  cat(sprintf(
+    "**%s.** With random recording folds, MAE was %.2f for the mean baseline, %.2f for linear regression and %.2f for the random forest. With leave-one-person-out testing, the corresponding errors were %.2f, %.2f and %.2f points.\n\n",
+    outcome_label,
+    get_mae(outcome_label, "Random rows", "Mean baseline"),
+    get_mae(outcome_label, "Random rows", "Linear regression"),
+    get_mae(outcome_label, "Random rows", "Random forest"),
+    get_mae(outcome_label, "New person", "Mean baseline"),
+    get_mae(outcome_label, "New person", "Linear regression"),
+    get_mae(outcome_label, "New person", "Random forest")
+  ))
+}
+
+new_person_comparison <- model_comparison |>
+  filter(scheme == "New person")
+
+cat(sprintf(
+  "Across the two voice models and two outcomes, **%d of %d comparisons** had a lower new-person MAE than the mean baseline.\n\n",
+  sum(new_person_comparison$difference_from_baseline < 0),
+  nrow(new_person_comparison)
+))
+```
+
+In the verified R run, neither voice model improved on the mean baseline for
+unseen people. Random recording folds produced smaller voice-model errors,
+consistent with a benefit from including recordings from familiar people in
+training. This comparison does not prove that the model explicitly identifies
+participants, and it does not establish performance for future clinic visits.
+
+The equal-person MAEs provide a check that the conclusion is not driven only by
+participants with more recordings. These comparisons are descriptive; no formal
+test of the difference between model errors is reported here.
+
+## Predicted versus actual UPDRS
+
+Each dot represents one person's average actual score and average held-out
+random-forest prediction.
+
+```{r aim3-scatter, fig.width=9, fig.height=8}
+person_predictions <- aim3_predictions |>
+  filter(model == "Random forest") |>
+  group_by(subject, outcome, scheme) |>
+  summarise(actual = mean(actual), predicted = mean(predicted), .groups = "drop") |>
+  mutate(
+    scheme = factor(scheme, levels = names(folds)),
+    outcome = unname(outcome_names[outcome])
+  )
+
+scatter_plot <- ggplot(person_predictions, aes(actual, predicted, colour = scheme)) +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", colour = "grey50") +
+  geom_point(size = 2.5, alpha = 0.85) +
+  facet_grid(outcome ~ scheme) +
+  scale_colour_manual(values = colours) +
+  coord_equal(xlim = c(0, 60), ylim = c(0, 60)) +
+  labs(
+    title = "Aim 3: Random forest predictions",
+    subtitle = "Each dot is one person; the dashed line shows perfect prediction",
+    x = "Actual UPDRS (person average)",
+    y = "Predicted UPDRS (person average)"
+  ) +
+  theme(legend.position = "none")
+
+print(scatter_plot)
+ggsave(file.path(out_dir, "aim3_predicted_actual.png"), scatter_plot,
+       width = 9, height = 8, dpi = 300)
+```
+
+**How to explain the plot:**
+
+- Dots near the diagonal indicate more accurate person-average predictions.
+- Above the diagonal means overprediction.
+- Below the diagonal means underprediction.
+- Predictions clustered near the middle miss differences between people.
+
+The MAEs use individual recordings. These dots use person averages to make
+the patterns easier to see.
+
+# Aim 4: Compare PD and healthy voices
+
+## Question
+
+Do participants with PD tend to have worse voice scores than healthy participants?
+
+We average the recordings to one row per person. This prevents repeated
+recordings from counting as independent participants.
+
+We compare the groups using two-sided Wilcoxon rank-sum tests and apply
+Benjamini-Hochberg correction across the three scores.
+
+## Create one row per person
+
+```{r aim4-people}
+score_names <- c(
+  jitter_score = "Jitter: pitch instability",
+  shimmer_score = "Shimmer: loudness instability",
+  noise_score = "Noise: noisier voice"
+)
+
+puc_people <- puc_clean |>
+  group_by(subject, group) |>
+  summarise(across(ends_with("_score"), mean), .groups = "drop")
+
+print(puc_people)
+print(count(puc_people, group))
+write_csv(puc_people, file.path(out_dir, "aim4_people.csv"))
+
+long_scores <- puc_people |>
+  pivot_longer(
+    cols = ends_with("_score"),
+    names_to = "score",
+    values_to = "value"
+  ) |>
+  mutate(score = factor(score, levels = names(score_names)))
+```
+
+## Run the statistical tests
+
+The rank-biserial effect size ranges from -1 to 1.
+A positive value means PD participants tend to have higher scores than healthy
+participants. The Wilcoxon test compares ranks/distributions, rather than
+exclusively testing differences in medians.
+
+```{r aim4-tests}
+aim4_tests <- long_scores |>
+  group_by(score) |>
+  summarise(
+    n_pd = sum(group == "PD"),
+    n_healthy = sum(group == "Healthy"),
+    healthy_median = median(value[group == "Healthy"]),
+    pd_median = median(value[group == "PD"]),
+    U = unname(wilcox.test(
+      value[group == "PD"], value[group == "Healthy"],
+      alternative = "two.sided", exact = FALSE, correct = TRUE
+    )$statistic),
+    p = wilcox.test(
+      value[group == "PD"], value[group == "Healthy"],
+      alternative = "two.sided", exact = FALSE, correct = TRUE
+    )$p.value,
+    .groups = "drop"
+  ) |>
+  mutate(
+    rank_biserial = 2 * U / (n_pd * n_healthy) - 1,
+    p_adjusted = p.adjust(p, method = "BH")
+  )
+
+print(as.data.frame(aim4_tests), row.names = FALSE)
+write_csv(aim4_tests, file.path(out_dir, "aim4_tests.csv"))
+```
+
+## Boxplots
+
+```{r aim4-boxplots, fig.width=11, fig.height=5}
+panel_labels <- setNames(
+  paste0(
+    score_names[as.character(aim4_tests$score)],
+    "\nAdjusted p = ", sprintf("%.3f", aim4_tests$p_adjusted)
+  ),
+  as.character(aim4_tests$score)
+)
+
+box_plot <- ggplot(long_scores, aes(group, value)) +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "grey75") +
+  geom_boxplot(width = 0.45, outlier.shape = NA) +
+  geom_point(
+    aes(colour = group), size = 2, alpha = 0.8,
+    position = position_jitter(width = 0.09, height = 0, seed = 2026)
+  ) +
+  facet_wrap(~ score, labeller = as_labeller(panel_labels)) +
+  scale_colour_manual(values = colours) +
+  scale_x_discrete(labels = c(
+    "Healthy" = "Healthy\n(n = 8)",
+    "PD" = "PD\n(n = 24)"
+  )) +
+  labs(
+    title = "Aim 4: PD versus healthy voices",
+    subtitle = "Each dot is one person; higher scores mean worse voice quality",
+    x = NULL,
+    y = "Person-average voice score"
+  ) +
+  theme(legend.position = "none", panel.grid.major.x = element_blank())
+
+print(box_plot)
+ggsave(file.path(out_dir, "aim4_boxplots.png"), box_plot,
+       width = 11, height = 5, dpi = 300)
+```
+
+**How to explain the plot:**
+
+- Each dot is one person.
+- The line inside each box is the median.
+- The box contains the middle 50% of participants.
+- Higher values indicate worse voice quality.
+- Negative scores mean below the dataset's recording-level average.
+
+The scores average standardized measures. The final composite scores do not
+necessarily have a standard deviation of one.
+
+## Results summary
+
+```{r aim4-summary}
+aim4_summary <- aim4_tests |>
+  transmute(
+    score,
+    healthy_median = round(healthy_median, 3),
+    pd_median = round(pd_median, 3),
+    rank_biserial = round(rank_biserial, 3),
+    adjusted_p = round(p_adjusted, 3),
+    below_0_05 = p_adjusted < 0.05
+  )
+
+print(as.data.frame(aim4_summary), row.names = FALSE)
+```
+
+## Aim 4 results
+
+These results use Jason's original averages of standardized raw measures.
+They do not use the later figure script's logged-score definitions.
+
+```{r aim4-results-text, results='asis'}
+cat(sprintf(
+  "The analysis included **%d PD participants and %d healthy participants**, with one average score per person.\n\n",
+  sum(puc_people$group == "PD"), sum(puc_people$group == "Healthy")
+))
+
+for (i in seq_len(nrow(aim4_tests))) {
+  result <- aim4_tests[i, ]
+  cat(sprintf(
+    "**%s.** The median score was %.3f in the PD group and %.3f in the healthy group. The two-sided Wilcoxon rank-sum test gave U = %.0f, raw p = %.4f and Benjamini-Hochberg-adjusted p = %.3f. The rank-biserial effect size was %.3f.\n\n",
+    score_names[as.character(result$score)],
+    result$pd_median, result$healthy_median,
+    result$U, result$p, result$p_adjusted, result$rank_biserial
+  ))
+}
+
+cat(sprintf(
+  "**%d of the %d comparisons** met the adjusted 0.05 threshold.\n\n",
+  sum(aim4_tests$p_adjusted < 0.05), nrow(aim4_tests)
+))
+```
+
+In the verified R run, PD participants tended to have higher, worse scores on
+all three measures. The positive rank-biserial effects describe the direction
+of the rank differences. Nevertheless, the participant distributions overlap.
+The tests support differences between these groups, rather than establishing
+diagnostic accuracy for an individual or changes in voice over time.
+
+These are unadjusted group comparisons. The dataset does not provide age or sex
+for assessing whether those characteristics help explain the observed differences.
+
+# Limitations
+
+- **Interpolated UPDRS:** Values between clinic visits are estimated rather
+  than newly measured at every recording.
+- **Small samples:** Aim 3 includes 42 people, and Aim 4 includes only 8
+  healthy participants.
+- **Separate datasets:** PUC has no UPDRS, and its IDs do not support joining
+  it to PAD.
+- **Unadjusted comparison:** PUC has no age or sex information for adjustment.
+- **Prediction uncertainty:** The simplified MAE plot shows point estimates
+  without confidence intervals.
+- **Scope:** The results describe these models and these samples. They do not
+  establish that every possible voice model would perform the same way.
+
+# Takeaway
+
+**Aim 3:** In this analysis, the voice models did not improve severity prediction
+for entirely new people compared with predicting the training average.
+
+**Aim 4:** Participants with PD tended to have worse voice scores than healthy
+participants, although the groups overlapped.
+
+Group differences in voice quality do not automatically translate into accurate
+prediction of an individual's disease severity.
+
+# Session information
+
+```{r session-information}
+sessionInfo()
+```

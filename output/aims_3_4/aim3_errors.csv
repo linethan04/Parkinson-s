@@ -1,0 +1,13 @@
+outcome,scheme,model,mae,equal_person_mae
+Motor UPDRS,New person,Linear regression,7.265119768675505,7.294197944161437
+Motor UPDRS,New person,Mean baseline,7.123908738440108,7.144258885811619
+Motor UPDRS,New person,Random forest,7.313023757887944,7.31139648139514
+Motor UPDRS,Random rows,Linear regression,6.623822104573783,6.657033002417256
+Motor UPDRS,Random rows,Mean baseline,6.961339896054323,6.983703553282216
+Motor UPDRS,Random rows,Random forest,5.897742572080851,5.915154648388624
+Total UPDRS,New person,Linear regression,9.239827481060145,9.226380682358869
+Total UPDRS,New person,Mean baseline,8.85883108052472,8.865190037810404
+Total UPDRS,New person,Random forest,9.290032232075177,9.253657431924022
+Total UPDRS,Random rows,Linear regression,8.422674676133283,8.417429684738694
+Total UPDRS,Random rows,Mean baseline,8.657779868487099,8.667380448602252
+Total UPDRS,Random rows,Random forest,7.465300185926241,7.463570715208594
