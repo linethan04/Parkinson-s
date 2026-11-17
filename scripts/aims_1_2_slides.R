@@ -10,7 +10,7 @@ library(ggrepel)
 out_dir <- "output/slides_aims_1_2"
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
-# ---- Look ----
+# ---- Look: colours, font and slide theme ----
 bg        <- "#F7F5F0"   # same as the slide background
 ink       <- "#1C2430"
 ink_soft  <- "#4F5866"
@@ -56,6 +56,7 @@ theme_slide <- function() {
 }
 theme_set(theme_slide())
 
+# Save a 200 dpi PNG with the slide background
 save_slide <- function(plot, name, width = 12, height = 5.6) {
   ggsave(file.path(out_dir, paste0(name, ".png")), plot, width = width, height = height,
          dpi = 200, device = ragg::agg_png, bg = bg)
@@ -112,6 +113,7 @@ people <- pad |>
                                  TRUE                 ~ "Stable"),
          progression = factor(progression, levels = c("Worsened", "Stable", "Improved")))
 
+# Group sizes
 count(people, progression)
 count(people, sex)
 
@@ -171,6 +173,7 @@ people |> group_by(progression) |> summarise(n = n(), median_age = median(age))
 kruskal.test(age ~ progression, data = people)
 
 # Does age explain the between-person voice effect? (links Aim 1 and Aim 2)
+# Motor UPDRS ~ voice, then ~ voice + age + sex (n = 42)
 adj <- tibble()
 for (s in c("jitter", "shimmer", "noise")) {
   fit1 <- coef(summary(lm(reformulate(s, "mean_motor"), data = people)))[s, ]

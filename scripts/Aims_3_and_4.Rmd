@@ -50,18 +50,20 @@ dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 pad_clean <- read.csv("data/pad_clean.csv")
 puc_clean <- read.csv("data/puc_clean.csv")
 
-# Display labels only: Jason exports "healthy" and "PD".
+# Capitalise group labels for plots
 puc_clean <- puc_clean |>
   mutate(group = factor(tolower(group),
                         levels = c("healthy", "pd"),
                         labels = c("Healthy", "PD")))
 
+# The 11 shared voice measures (Aim 3 predictors)
 voice_vars <- c(
   "jitter_pct", "jitter_abs", "jitter_rap", "jitter_ppq5",
   "shimmer", "shimmer_db", "shimmer_apq3", "shimmer_apq5",
   "shimmer_apq11", "nhr", "hnr"
 )
 
+# Check sample sizes
 data_summary <- tibble(
   dataset = c("PAD", "PUC"),
   recordings = c(nrow(pad_clean), nrow(puc_clean)),
@@ -113,10 +115,12 @@ We exclude subject ID and both UPDRS outcomes from the predictors.
 models <- c("Mean baseline", "Linear regression", "Random forest")
 outcome_names <- c(motor_updrs = "Motor UPDRS", total_updrs = "Total UPDRS")
 
+# Log the skewed measures (HNR is already in dB)
 pred_data <- pad_clean |>
   select(subject, motor_updrs, total_updrs, all_of(voice_vars)) |>
   mutate(across(all_of(setdiff(voice_vars, "hnr")), log))
 
+# Two test designs: 5 random folds, or one fold per person
 set.seed(2026)
 folds <- list(
   "Random rows" = sample(rep(1:5, length.out = nrow(pred_data))),
@@ -130,6 +134,7 @@ Every recording receives a held-out prediction in each testing design.
 The baseline uses only the training data.
 
 ```{r aim3-models}
+# Held-out predictions from all 3 models for one outcome and test design
 cross_validate <- function(outcome, scheme) {
   fold <- folds[[scheme]]
   model_formula <- reformulate(voice_vars, response = outcome)
@@ -141,7 +146,7 @@ cross_validate <- function(outcome, scheme) {
     dimnames = list(NULL, models)
   )
 
-  for (k in unique(fold)) {
+  for (k in unique(fold)) {   # train on the other folds, predict fold k
     test <- fold == k
     training <- pred_data[!test, ]
     testing <- pred_data[test, ]
@@ -181,6 +186,7 @@ cross_validate <- function(outcome, scheme) {
     )
 }
 
+# Run every outcome x design
 aim3_predictions <- expand_grid(
   outcome = c("motor_updrs", "total_updrs"),
   scheme = names(folds)
@@ -201,6 +207,7 @@ The main MAE gives each recording equal weight. The equal-person MAE first
 averages errors within each person, then averages across people.
 
 ```{r aim3-errors}
+# MAE per recording, and per person (equal weight per person)
 aim3_predictions <- aim3_predictions |>
   mutate(absolute_error = abs(actual - predicted))
 
@@ -232,6 +239,7 @@ A negative difference means the model has a smaller error than the baseline.
 A positive difference means it has a larger error.
 
 ```{r aim3-baseline-comparison}
+# Model MAE minus baseline MAE (negative = better than baseline)
 baseline_errors <- aim3_errors |>
   filter(model == "Mean baseline") |>
   select(outcome, scheme, baseline_mae = mae)
@@ -334,6 +342,7 @@ Each dot represents one person's average actual score and average held-out
 random-forest prediction.
 
 ```{r aim3-scatter, fig.width=9, fig.height=8}
+# Random forest, averaged to one dot per person
 person_predictions <- aim3_predictions |>
   filter(model == "Random forest") |>
   group_by(subject, outcome, scheme) |>
@@ -393,6 +402,7 @@ score_names <- c(
   noise_score = "Noise: noisier voice"
 )
 
+# Average recordings to one row per person
 puc_people <- puc_clean |>
   group_by(subject, group) |>
   summarise(across(ends_with("_score"), mean), .groups = "drop")
@@ -418,6 +428,7 @@ participants. The Wilcoxon test compares ranks/distributions, rather than
 exclusively testing differences in medians.
 
 ```{r aim4-tests}
+# Wilcoxon test per score; rank-biserial = 2U / (n_pd * n_healthy) - 1; BH across 3 scores
 aim4_tests <- long_scores |>
   group_by(score) |>
   summarise(
@@ -447,6 +458,7 @@ write_csv(aim4_tests, file.path(out_dir, "aim4_tests.csv"))
 ## Boxplots
 
 ```{r aim4-boxplots, fig.width=11, fig.height=5}
+# Panel titles with adjusted p-values
 panel_labels <- setNames(
   paste0(
     score_names[as.character(aim4_tests$score)],

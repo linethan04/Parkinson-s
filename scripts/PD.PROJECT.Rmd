@@ -17,6 +17,7 @@ We're using two Parkinson's disease (PD) voice datasets from UCI. `pad.df` follo
 ```{r load, message=FALSE}
 library(tidyverse)
 
+# Raw data: pad = telemonitoring, puc = Oxford PD vs healthy
 pad.df <- read_csv("data/parkinsons+telemonitoring/parkinsons_updrs.data", show_col_types = FALSE)
 puc.df <- read_csv("data/parkinsons.data", show_col_types = FALSE)
 ```
@@ -26,6 +27,7 @@ puc.df <- read_csv("data/parkinsons.data", show_col_types = FALSE)
 Neither dataset has missing values or duplicate rows, so there's nothing to fix here.
 
 ```{r checks}
+# Size, missing values, duplicate rows
 dim(pad.df)
 dim(puc.df)
 
@@ -41,6 +43,7 @@ sum(duplicated(puc.df))
 We keep the subject, age, sex, time, both UPDRS scores, and the jitter, shimmer and noise measures from our proposal.
 
 ```{r clean-pad}
+# Short names; keep only the variables in our proposal
 pad_clean <- pad.df %>%
   transmute(
     subject       = `subject#`,
@@ -70,6 +73,7 @@ head(pad_clean)
 We pull the subject out of `name` (`phon_R01_S01_1` is subject `S01`), label each person as PD or healthy, and keep the same voice measures as `pad_clean`.
 
 ```{r clean-puc}
+# Subject from name (phon_R01_S01_1 -> S01); same voice columns as pad_clean
 puc_clean <- puc.df %>%
   transmute(
     subject       = str_extract(name, "S\\d{2}"),
@@ -99,6 +103,7 @@ The jitter measures are nearly the same signal, and so are the shimmer measures.
 Scores are z-scored within each dataset, so 0 means "average for that dataset". That means a `pad_clean` score can't be compared directly with a `puc_clean` score.
 
 ```{r voice-scores}
+# z-score each measure, average within family; HNR flipped so higher = worse
 add_voice_scores <- function(data) {
   data %>%
     mutate(
@@ -117,6 +122,7 @@ puc_clean <- add_voice_scores(puc_clean)
 We split each voice score into two parts. `_person` is that person's usual level, and `_diff` is how far one recording sits from it. This lets us ask two different questions: do people with worse voices have worse UPDRS, and when someone's voice gets worse, does their own UPDRS go up?
 
 ```{r between-within}
+# _person = person's mean score; _diff = recording minus that mean
 pad_clean <- pad_clean %>%
   group_by(subject) %>%
   mutate(
@@ -135,6 +141,7 @@ pad_clean <- pad_clean %>%
 Age and sex don't change between recordings, so Aim 2 needs one row per person. `pad_people` has each person's average UPDRS and how much their motor UPDRS changed from first to last recording. We call a change of 2.5 points or more meaningful, which is the minimal clinically important difference for motor UPDRS from Shulman et al. (2010).
 
 ```{r progression}
+# One row per person; a motor change of 2.5+ points counts as meaningful
 pad_people <- pad_clean %>%
   arrange(subject, test_time) %>%
   group_by(subject) %>%
@@ -159,6 +166,7 @@ count(pad_people, progression)
 ## Save
 
 ```{r save}
+# Cleaned files read by Aims_3_and_4.Rmd
 dir.create("data", showWarnings = FALSE)
 
 write_csv(pad_clean, "data/pad_clean.csv")

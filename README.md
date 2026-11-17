@@ -55,3 +55,7 @@ Steps 1 and 2 are independent of each other and of step 3. Seeds are fixed (2026
 1. GBD 2021 Nervous System Disorders Collaborators. Global burden of disorders affecting the nervous system, 1990–2021. *Lancet Neurol.* 2024.
 2. Tsanas A, Little MA, McSharry PE, Ramig LO. Accurate telemonitoring of Parkinson's disease progression by noninvasive speech tests. *IEEE Trans Biomed Eng.* 2010;57(4):884–893.
 3. Little MA, McSharry PE, Hunter EJ, Spielman J, Ramig LO. Suitability of dysphonia measurements for telemonitoring of Parkinson's disease. *IEEE Trans Biomed Eng.* 2009;56(4):1015–1022.
+
+## AI usage
+
+We used Claude (Anthropic) to help debug the R code and to build the interactive webpage that presents the final results. All analysis choices and conclusions are ours, and every result can be reproduced by running the scripts in [@scripts/](scripts/).

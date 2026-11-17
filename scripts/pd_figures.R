@@ -1,6 +1,6 @@
 # Parkinson's voice project: cleaning, extra wrangling and figures
 # Open Parkinson-s.Rproj first so paths start at the project root.
-# Figures are saved to output/figures/ as PNG (300 dpi) and PDF.
+# Saves 13 figures to output/figures/ as 300 dpi PNGs. Runs in about 90 s.
 library(tidyverse)
 library(lmerTest)   # mixed models with p-values
 library(patchwork)  # put plots side by side
@@ -56,6 +56,7 @@ puc <- puc_raw |>
     hnr           = HNR
   )
 
+# The 11 voice measures and their plot labels
 voice_vars <- c("jitter_pct", "jitter_abs", "jitter_rap", "jitter_ppq5",
                 "shimmer", "shimmer_db", "shimmer_apq3", "shimmer_apq5", "shimmer_apq11",
                 "nhr", "hnr")
@@ -70,7 +71,7 @@ voice_labels <- c(jitter_pct = "Jitter (%)", jitter_abs = "Jitter (abs)",
 # Raw jitter has skew ~6, so a few extreme recordings would dominate the score.
 # HNR is already in dB (a log scale), so it is only flipped.
 # Each score is z-scored again, so 1 unit = 1 SD of that score.
-z <- function(x) as.numeric(scale(x))
+z <- function(x) as.numeric(scale(x))   # z-score a vector
 
 add_voice_scores <- function(d) {
   d |>
@@ -177,7 +178,7 @@ icc_motor <- icc("motor_updrs")
 icc_total <- icc("total_updrs")
 c(motor = icc_motor, total = icc_total)
 
-score_levels <- c("Jitter", "Shimmer", "Noise")
+score_levels <- c("Jitter", "Shimmer", "Noise")   # plot order
 
 
 # =====================================================================
@@ -587,7 +588,7 @@ for (y in c("motor_updrs", "total_updrs")) {
   for (scheme in names(folds)) {
     fold <- folds[[scheme]]
     p_mean <- p_lm <- p_rf <- numeric(nrow(pred_data))
-    for (k in unique(fold)) {
+    for (k in unique(fold)) {   # train on the other folds, predict fold k
       test  <- fold == k
       train <- pred_data[!test, ]
       p_mean[test] <- mean(train[[y]])
@@ -655,6 +656,7 @@ save_fig(fig12, "fig12_aim3_prediction", width = 9, height = 9)
 
 
 # ---- Fig 13. Aim 4: PD vs healthy in the Oxford data ----
+# Wilcoxon test per score, BH-corrected across the 3 scores
 aim4 <- puc_people |>
   pivot_longer(c(Jitter, Shimmer, Noise), names_to = "score", values_to = "value") |>
   group_by(score) |>

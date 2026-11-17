@@ -25,6 +25,7 @@ col_dataset     <- c("Home PD (telemonitoring)" = blue,
                      "Clinic PD (Oxford)"       = orange,
                      "Healthy (Oxford)"         = aqua)
 
+# Base theme: minimal, left-aligned titles, legend on top
 theme_pd <- function(base_size = 11) {
   theme_minimal(base_size = base_size) +
     theme(
@@ -58,6 +59,7 @@ theme_pd <- function(base_size = 11) {
     )
 }
 
+# Apply to every plot
 theme_set(theme_pd())
 update_geom_defaults("text", list(colour = ink_soft, size = 3.2))
 
