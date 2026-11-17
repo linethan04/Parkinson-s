@@ -2,3 +2,9 @@
 .Rhistory
 .RData
 .Ruserdata
+.DS_Store
+Rplots.pdf
+*.html
+data/pad_clean.csv
+data/puc_clean.csv
+data/pad_people.csv

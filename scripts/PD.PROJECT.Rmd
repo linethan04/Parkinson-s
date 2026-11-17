@@ -6,6 +6,8 @@ date: "2026-10-08"
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+# Knit from the main repository folder so the data paths work
+knitr::opts_knit$set(root.dir = "..")
 ```
 
 We're using two Parkinson's disease (PD) voice datasets from UCI. `pad.df` follows 42 people with PD at home and has their UPDRS scores. `puc.df` has both PD and healthy people, but no UPDRS. There's no shared ID between them, so we can't join them. We clean each one on its own and give the voice measures the same names.
@@ -15,8 +17,8 @@ We're using two Parkinson's disease (PD) voice datasets from UCI. `pad.df` follo
 ```{r load, message=FALSE}
 library(tidyverse)
 
-pad.df <- read_csv("parkinsons_updrs.data", show_col_types = FALSE)
-puc.df <- read_csv("parkinsons/parkinsons.data", show_col_types = FALSE)
+pad.df <- read_csv("data/parkinsons+telemonitoring/parkinsons_updrs.data", show_col_types = FALSE)
+puc.df <- read_csv("data/parkinsons.data", show_col_types = FALSE)
 ```
 
 ## Quick checks
