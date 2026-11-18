@@ -59,3 +59,12 @@ Steps 1 and 2 are independent of each other and of step 3. Seeds are fixed (2026
 ## AI usage
 
 We used Claude (Anthropic) to help debug the R code and to build the interactive webpage that presents the final results. All analysis choices and conclusions are ours, and every result can be reproduced by running the scripts in [@scripts/](scripts/).
+
+## Project website
+
+An interactive version of this project, with the four aims, charts and code, is in [@docs/](docs/) and published with GitHub Pages at **https://linethan04.github.io/Parkinson-s/**.
+
+- **View it locally:** double-click `docs/index.html`, or run `python3 -m http.server` inside `docs/` and open http://localhost:8000.
+- **Rebuild its data:** every number and chart on the site comes from `docs/data/`, which `Rscript scripts/export.R` writes from the raw data files (run from the project root; needs `jsonlite` as well as the packages above). It reruns the same analysis code as the scripts and checks itself against [@output/aims_3_4/](output/aims_3_4/).
+- **One-file copy:** `python3 scripts/build_single_html.py` writes `dist/parkinsons-voice-site.html`, the whole site in one file that opens offline.
+- **Publishing:** in the repository's Settings → Pages, set Source to "Deploy from a branch", branch `main`, folder `/docs`. GitHub Pages is free for public repositories.
