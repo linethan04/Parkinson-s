@@ -1,0 +1,814 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Can voice track Parkinson's disease?</title>
+<meta name="description" content="A data-wrangling project on whether a home voice recording can track Parkinson's disease severity. By Jason Spino, Ethan Lin and Kwaku Darkwah.">
+<meta name="theme-color" content="#F7F5F0">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231C2430'/%3E%3Cpath d='M4 16h4l2-7 3 14 3-18 3 16 2-8 2 3h5' fill='none' stroke='%23F7F5F0' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to the content</a>
+
+<nav id="rail" aria-label="Chapters">
+  <a class="rail-home" href="#story" aria-label="Can voice track Parkinson's? Replay the opening story" title="Replay the opening story"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.6 7.4v9.2l7.4-4.6z" fill="currentColor"/></svg><span>Can voice track Parkinson's?</span></a>
+  <ol id="rail-list">
+    <li><a href="#question">The question</a></li>
+    <li><a href="#data">The data</a></li>
+    <li><a href="#wrangling">Wrangling</a></li>
+    <li><a href="#aims">The four aims</a></li>
+    <li><a href="#conclusion">Conclusion</a></li>
+    <li><a href="#reproduce">Reproduce it and credits</a></li>
+  </ol>
+  <div class="rail-progress" aria-hidden="true"><i id="rail-bar"></i></div>
+</nav>
+
+<main id="main" tabindex="-1">
+
+<!-- ============================ OPENING STORY ============================ -->
+<article class="chapter story intro-on" id="story" data-num="" data-title="The story in a minute" data-short="Story" data-q="">
+  <section class="intro" id="intro" aria-labelledby="intro-h">
+    <h2 class="intro-hook" id="intro-h">Could a few seconds of your voice track Parkinson’s disease?</h2>
+    <div class="intro-stage">
+      <canvas id="intro-brain" role="img" aria-label="An animated brain made of dots, slowly turning, with voice-wave rings pulsing out from it."></canvas>
+    </div>
+    <div class="intro-go">
+      <button type="button" class="cover-go" id="intro-start">Start<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M8 20h22M21 10l10 10-10 10" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <a class="story-skip" href="#question">Skip to the site</a>
+    </div>
+  </section>
+  <div class="story-in">
+    <div class="story-top">
+      <p class="story-count"><span class="sr-only">Slide </span><span id="story-count">1 / 7</span></p>
+      <a class="story-skip" href="#question">Skip to the site</a>
+    </div>
+    <div class="slides" id="slides">
+      <section class="slide" aria-labelledby="slide-h1" hidden>
+        <div class="slide-text">
+          <h2 id="slide-h1">Parkinson's disease is measured only a few times a year.</h2>
+          <p>It's done with an exam called the UPDRS. It needs a clinic visit and trained staff, so months pass between one score and the next.</p>
+        </div>
+        <figure class="slide-fig">
+          <div class="slide-plot" data-fig="clinic" role="img" aria-label="A six-month timeline with three clinic exams, at about 0, 3 and 6 months."></div>
+          <figcaption>In the dataset we used, the exam was given at about 0, 3 and 6 months.</figcaption>
+        </figure>
+      </section>
+      <section class="slide" aria-labelledby="slide-h2" hidden>
+        <div class="slide-text">
+          <h2 id="slide-h2">A voice recording takes a few seconds.</h2>
+          <p>A person holds an “ahhh”, and software measures how unsteady the sound is: <b>jitter</b> is wobble in pitch, <b>shimmer</b> is wobble in loudness, and <b>noise</b> is how breathy the voice is.</p>
+        </div>
+        <figure class="slide-fig">
+          <div class="slide-plot" data-fig="wave" role="img" aria-label="A drawing of a voice waveform, with the three things measured from it: jitter, shimmer and noise."></div>
+          <figcaption>This illustration is not a real patient recording.</figcaption>
+        </figure>
+      </section>
+      <section class="slide" aria-labelledby="slide-h3" hidden>
+        <div class="slide-text">
+          <h2 id="slide-h3">Could voice recordings fill the gaps between clinic visits?</h2>
+          <p>If voice follows the disease, a person could be checked frequently from home between exams. That is the idea we set out to test.</p>
+        </div>
+        <figure class="slide-fig">
+          <div class="slide-plot" data-fig="gaps" role="img" aria-label="The same six-month timeline, now with one person’s home recording sessions filling the time between the three clinic exams."></div>
+          <figcaption>Person <span data-n="story.eg_person">15</span> in the home study dataset: <span data-n="story.eg_n">143</span> recordings across <span data-n="story.eg_sessions">24</span> home sessions, around three clinic exams.</figcaption>
+        </figure>
+      </section>
+      <section class="slide" aria-labelledby="slide-h4" hidden>
+        <div class="slide-text">
+          <h2 id="slide-h4">Two public datasets had the recordings we needed.</h2>
+          <p>One followed <b data-n="pad.people">42</b> people with PD at home for six months: <b data-n="pad.rows">5,875</b> recordings, each paired with a UPDRS score. The other recorded <b data-n="puc.people">32</b> people in a speech lab: <span data-n="puc.pd">24</span> with PD and <span data-n="puc.healthy">8</span> healthy.</p>
+        </div>
+        <figure class="slide-fig">
+          <div class="slide-plot" data-fig="people" role="img" aria-label="Two groups of dots, one dot per person: the home study, all with Parkinson’s, and the Oxford study, with Parkinson’s and healthy people."></div>
+          <figcaption>Each dot is one person.</figcaption>
+        </figure>
+      </section>
+      <section class="slide" aria-labelledby="slide-h5" hidden>
+        <div class="slide-text">
+          <h2 id="slide-h5">We boiled <span data-n="wr.n_measures">11</span> voice measures down to three scores.</h2>
+          <p>The two datasets used different participants, equipment and settings, so we kept them apart. We cleaned each one, dropped the columns we did not need, and combined the rest into jitter, shimmer and noise.</p><p>Then we split each score in two: a person’s usual voice, and how far each recording strays from it.</p>
+        </div>
+        <figure class="slide-fig">
+          <div class="slide-plot" data-fig="scores" role="img" aria-label="The voice measures grouped into three scores: jitter, shimmer and noise. Each score is then split into a usual level and a day-to-day wobble."></div>
+          <figcaption>The column names are the ones in our cleaned tables.</figcaption>
+        </figure>
+      </section>
+      <section class="slide" aria-labelledby="slide-h6" hidden>
+        <div class="slide-text">
+          <h2 id="slide-h6">Then we asked two things of voice.</h2>
+          <p><b>Between people:</b> do people with worse voices have worse scores?</p><p><b>Within a person:</b> when one person’s voice gets worse, does their score rise?</p><p>Four aims test this from four angles.</p>
+        </div>
+        <figure class="slide-fig">
+          <div class="slide-plot" data-fig="two" role="img" aria-label="Two sketches. Between people: several people, each with a different usual voice level. Within a person: one person’s voice wobbling around their own usual level."></div>
+          <figcaption>A sketch of the two questions, not data.</figcaption>
+        </figure>
+      </section>
+      <section class="slide solo" aria-labelledby="slide-h7" hidden>
+        <div class="slide-text">
+          <h2 id="slide-h7">So, can voice track Parkinson’s?</h2>
+          <p>Make your guess on the next page, then see what the data says.</p>
+        </div>
+      </section>
+    </div>
+    <div class="story-nav">
+      <button type="button" class="pill" id="story-back">Back</button>
+      <ol class="story-dots" id="story-dots" aria-label="Slides"></ol>
+      <button type="button" class="pill solid" id="story-next">Next</button>
+    </div>
+  </div>
+</article>
+
+<!-- ============================ THE QUESTION ============================ -->
+<article class="chapter" id="question" data-num="1" data-title="The question" data-short="Question" data-q="Could a home “ahhh” replace the clinic exam?">
+<header class="hero">
+  <div class="hero-in">
+    <h1>Can voice track Parkinson's disease?</h1>
+    <p class="byline">
+      <span>Jason Spino, Ethan Lin and Kwaku Darkwah</span>
+      <span>QBS 181: Final Project</span>
+      <span>Dartmouth College</span>
+    </p>
+
+    <div class="stats hero-stats">
+      <div class="stat"><span class="stat-pre">More than</span><b><span class="count">10</span> million</b><span class="stat-lab">people worldwide live with Parkinson's disease (PD)</span></div>
+      <div class="stat"><span class="stat-pre">About</span><b><span class="count">89%</span></b><span class="stat-lab">of people with PD have a speech or voice disorder</span></div>
+    </div>
+
+  <figure class="voice" id="voice">
+      <div class="voice-wave" id="voice-wave" role="img" aria-label="Drawing of a synthetic voice waveform. Switches below add pitch wobble, loudness wobble and noise."></div>
+      <div class="voice-controls">
+        <button type="button" class="pill play" id="voice-play" aria-pressed="false">Play the “ahhh”</button>
+        <span class="voice-sep" aria-hidden="true"></span>
+        <label class="switch"><input type="checkbox" id="v-jitter"><span>Jitter <small>pitch wobble</small></span></label>
+        <label class="switch"><input type="checkbox" id="v-shimmer"><span>Shimmer <small>loudness wobble</small></span></label>
+        <label class="switch"><input type="checkbox" id="v-noise"><span>Noise <small>breathiness</small></span></label>
+      </div>
+      <figcaption>This is not a real patient recording. Clicking Jitter, Shimmer, or Noise exaggerates the effect on the mock recording. The ticks mark each cycle of the vocal folds.</figcaption>
+    </figure>
+
+    <div class="guess" id="guess">
+      <p class="guess-q" id="guess-q"><b>Make your guess.</b> Could a home “ahhh” recording replace the clinic exam?</p>
+      <div class="guess-opts" role="group" aria-labelledby="guess-q">
+        <button type="button" data-guess="Yes" aria-pressed="false">Yes</button>
+        <button type="button" data-guess="No" aria-pressed="false">No</button>
+        <button type="button" data-guess="Partly" aria-pressed="false">Partly</button>
+      </div>
+      <p class="guess-note" id="guess-note" aria-live="polite">We will come back to your answer at the end.</p>
+    </div>
+  </div>
+</header>
+
+<section class="part">
+  <div class="prose">
+    <p>Parkinson's Disease (PD) severity is typically tracked with a clinical exam called the <abbr title="Unified Parkinson's Disease Rating Scale">UPDRS</abbr>. It requires a clinic visit and trained staff, so it only happens a few times a year. UPDRS is divided into two scores: the <b>motor</b> score and <b>non-motor</b> score. Motor score assesses neurological control of movement, while the non-motor score assesses mental symptoms. Together they make the <b>total</b> score; our data has the motor and total scores. Higher scores are worse.</p>
+    <p>A voice recording is far easier to get than UPDRS. A person holds an “ahhh” for a few seconds, and software measures how unsteady the sound is: <b>jitter</b> is wobble in pitch, <b>shimmer</b> is wobble in loudness, and <b>noise</b> is how breathy the voice is. Try the switches above.</p>
+    <p>Our question considered both voice and severity measures: <b>Could a home “ahhh” recording replace the clinic exam?</b> We tested it four ways, using two public datasets.</p>
+    <p class="source">Figures: American Parkinson Disease Association; a review in <i>NeuroRehabilitation</i> (IOS Press). UPDRS and voice measures: Tsanas et al., 2010.</p>
+  </div>
+</section>
+<p class="cliff">To find out, we need voices and clinic scores.</p>
+</article>
+
+<!-- ============================ THE DATA ============================ -->
+<article class="chapter" id="data" data-num="2" data-title="The data" data-short="Data" data-q="Two datasets measured the same “ahhh”. Can we combine them?">
+<section class="cover" aria-labelledby="data-cover-h">
+  <div class="cover-in">
+    <p class="cover-num" aria-hidden="true">2</p>
+    <h2 class="cover-title" id="data-cover-h">The data</h2>
+    <p class="cover-sub">Two datasets measured the same “ahhh”, but they cannot be joined.</p>
+    <div class="cover-fig" data-fig="people" role="img" aria-label="Two groups of dots, one dot per person: the home study and the Oxford study, kept apart."></div>
+    <button type="button" class="cover-go">Continue<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M8 20h22M21 10l10 10-10 10" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  </div>
+</section>
+<section class="part" id="datasets">
+  <h2 class="sect"><b class="num" aria-hidden="true">2</b>The data</h2>
+  <div class="prose">
+    <p>One study followed people with PD at home for six months. The other brought people with and without PD into a speech lab once. Each circle below is one person, and its size shows how many recordings they made.</p>
+  </div>
+
+  <figure class="wide">
+    <div class="legend" aria-hidden="true">
+      <span><i class="sw" style="background:var(--orange)"></i>Has Parkinson's</span>
+      <span><i class="sw" style="background:var(--blue)"></i>Healthy</span>
+      <span class="legend-note">Circle area = number of recordings</span>
+    </div>
+    <div class="two-up">
+      <div class="study">
+        <div id="fig-pad-people" class="plot"></div>
+        <h3>Home study <small>Tsanas et al., 2010</small></h3>
+        <ul class="facts">
+          <li class="big"><b class="count" data-n="pad.people">42</b> <span>people, all with early-stage PD</span></li>
+          <li class="big"><b class="count" data-n="pad.rows">5,875</b> <span>recordings made at home over 6 months, about <span data-n="pad.rec_mean">140</span> each</span></li>
+          <li>Has UPDRS, age and sex</li>
+          <li>Used for Aims 1, 2 and 3</li>
+        </ul>
+      </div>
+      <div class="study">
+        <div id="fig-puc-people" class="plot"></div>
+        <h3>Oxford study <small>Little et al., 2009</small></h3>
+        <ul class="facts">
+          <li class="big"><b class="count" data-n="puc.people">32</b> <span>people: <span data-n="puc.pd">24</span> with PD, <span data-n="puc.healthy">8</span> healthy</span></li>
+          <li class="big"><b class="count" data-n="puc.rows">195</b> <span>recordings made in a speech lab, 6 or 7 each</span></li>
+          <li>No UPDRS, no age, no sex</li>
+          <li>Used for Aim 4</li>
+        </ul>
+      </div>
+    </div>
+  </figure>
+
+  <div class="prose">
+    <p><b>Why we kept them apart.</b> To join two datasets you need a column they share. These two studies used different participants, equipment and settings, so we treat each one on its own. Thus, we clean each dataset separately, give the voice measures the same names, and compare what each one finds.</p>
+    <p><b>Why consider two studies, if they differ?</b> Only the home study has UPDRS, so it answers the questions about severity. Only the Oxford study has healthy people, so it answers whether PD voices differ from healthy ones.</p>
+  </div>
+
+  <details class="stat">
+    <summary>For statisticians</summary>
+    <div>
+      <p>In the home study, UPDRS was scored 3 times by a clinician (around 0, 3 and 6 months) and <b>linearly interpolated</b> for every recording in between – so recordings from one person are not independent. People made <span data-n="pad.rec_min">101</span> to <span data-n="pad.rec_max">168</span> recordings each, in <span data-n="pad.sessions">990</span> home sessions of about six recordings. Raw files: <span data-n="pad.rows">5,875</span> × <span data-n="pad.cols">22</span> and <span data-n="puc.rows">195</span> × <span data-n="puc.cols">24</span>.</p>
+      <p>What the original authors reported: Tsanas et al. estimated UPDRS to within about 7.5 points of the clinicians' scores; Little et al. classified PD versus healthy correctly 91.4% of the time. Both figures are from the papers, not from our analysis.</p>
+    </div>
+  </details>
+</section>
+<section class="part part-feature">
+<details class="feature" id="road">
+  <summary>
+    <span class="feature-k">Road not taken</span>
+    <span class="feature-t">Why not stack the two datasets and fill in the gaps?</span>
+    <span class="feature-hint"><span class="when-closed">Open to see what we tried</span><span class="when-open">Close</span></span>
+  </summary>
+  <div class="feature-body">
+  <div class="prose">
+    <p>It is tempting to stack the two datasets and fill the gaps. The Oxford file has no UPDRS, age, sex or time, and methods we discussed in class such as <b>hot deck</b> (copy the value from a similar row) and <b>KNN</b> (average the nearest few rows) can invent them.</p>
+    <p>We tested the idea inside the home study. We hid each person's real UPDRS and tried to recover it from their voice.</p>
+  </div>
+
+  <figure class="race" id="race">
+    <dl class="misses">
+      <div class="lane" data-v="9.5"><dt>Hot deck</dt><dd><span class="track"><span class="bar"></span></span><span class="val"><b>9.5</b> points off</span></dd></div>
+      <div class="lane" data-v="7.7"><dt>KNN</dt><dd><span class="track"><span class="bar"></span></span><span class="val"><b>7.7</b> points off</span></dd></div>
+      <div class="lane win" data-v="7.1"><dt>Guess the average</dt><dd><span class="track"><span class="bar"></span></span><span class="val"><b>7.1</b> points off</span></dd></div>
+    </dl>
+    <div class="race-foot">
+      <span class="race-key">Shorter bar, smaller miss. The line marks the miss from guessing the average.</span>
+      <button type="button" class="pill" id="race-replay">Replay</button>
+    </div>
+  </figure>
+
+  <h3 class="feature-reveal">Filling in the missing columns would have been worse than guessing the average.</h3>
+
+  <div class="prose">
+    <p>Both methods missed motor UPDRS by more than simply guessing the average for everyone.</p>
+    <p>This is due to a few gaps between datasets: the Oxford study never collected UPDRS. So, imputing would hand healthy people UPDRS scores based on PD patients, then test voice against scores that were themselves predicted from voice. That is extremely circular.</p>
+  </div>
+  <aside class="pull" aria-hidden="true"><p>Made-up values would make the data look more complete without making it more trustworthy.</p></aside>
+
+  <details class="stat">
+    <summary>For statisticians</summary>
+    <div>
+      <p>The three error figures are mean absolute errors in motor UPDRS points, quoted from our project report. The script for this check is not in the repository, so unlike the rest of this page these numbers are not regenerated by <code>export.R</code>. The 7.1 is close to the leave-one-person-out mean baseline in Aim 3 (<span data-n="a3.motor.new.base">7.12</span>).</p>
+    </div>
+  </details>
+  </div>
+</details>
+</section>
+<p class="cliff">So the two datasets stay apart. What did it take to get them ready?</p>
+</article>
+
+<!-- ============================ WRANGLING ============================ -->
+<article class="chapter" id="wrangling" data-num="3" data-title="Data wrangling" data-short="Wrangling" data-q="What did we keep, drop and build?">
+<section class="cover" aria-labelledby="wrangling-cover-h">
+  <div class="cover-in">
+    <p class="cover-num" aria-hidden="true">3</p>
+    <h2 class="cover-title" id="wrangling-cover-h">Data wrangling</h2>
+    <p class="cover-sub">The data arrived clean, so the work was deciding what to keep and what to build.</p>
+    <div class="cover-fig" data-fig="scores" role="img" aria-label="The voice measures grouped into three scores: jitter, shimmer and noise."></div>
+    <button type="button" class="cover-go">Continue<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M8 20h22M21 10l10 10-10 10" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  </div>
+</section>
+<section class="part">
+  <h2 class="sect"><b class="num" aria-hidden="true">3</b>Data wrangling</h2>
+  <div class="prose">
+    <p>Step through the seven things we did. The two tables below change shape as you go.</p>
+  </div>
+
+  <div class="stepper wide" id="wrangle" tabindex="0" aria-label="Wrangling steps. Use the buttons or the left and right arrow keys.">
+    <div class="stepper-nav">
+      <button type="button" class="pill" id="wr-prev">Back</button>
+      <ol class="stepper-dots" id="wr-dots"></ol>
+      <button type="button" class="pill solid" id="wr-next">Next</button>
+    </div>
+
+    <div class="stepper-text" aria-live="polite">
+      <div class="wr-step" data-step="0">
+        <h3>Check for problems</h3>
+        <p>We looked for missing values and duplicate rows in both files and found <b data-n="wr.missing">0</b> of each. Nothing needed fixing or removing.</p>
+        <p class="note">We found two oddities and kept them. <b data-n="wr.neg">12</b> home recordings have a negative time: they are two early sessions (from people 34 and 42) made a few days before their official start date, and their UPDRS scores look normal. And the Oxford documentation says <span data-n="puc.doc_people">31</span> people, but the file holds <span data-n="puc.people">32</span>, so we use what the file contains.</p>
+      </div>
+      <div class="wr-step" data-step="1">
+        <h3>Give both files the same names</h3>
+        <p>The two files call the same measurement different things: <code>Jitter(%)</code> in one is <code>MDVP:Jitter(%)</code> in the other. We renamed both to one tidy set to a similar name (e.g., <code>jitter_pct</code>) so the same code works on either table.</p>
+      </div>
+      <div class="wr-step" data-step="2">
+        <h3>Drop columns that do not help</h3>
+        <p><b>Redundant.</b> <code>Jitter:DDP</code> is exactly 3 × <code>Jitter:RAP</code>, and <code>Shimmer:DDA</code> is 3 × <code>Shimmer:APQ3</code>. They carry no new information.</p>
+        <p><b>Irrelevant.</b> RPDE, DFA and PPE were not in our proposal, and DFA looks different in the two studies. Additionally, <code>spread1</code>, <code>spread2</code>, and <code>D2</code> were in the Oxford study, but we had no use for them in our analysis plan.</p>
+      </div>
+      <div class="wr-step" data-step="3">
+        <h3>Keep 11 voice measures</h3>
+        <p>Both tables now share the same 11 measures: <b>4 jitter</b>, <b>5 shimmer</b>, and two noise ratios (<b>NHR</b> and <b>HNR</b>). The home table also keeps who, when, age, sex and the two UPDRS scores. The Oxford table keeps who and whether they have PD.</p>
+      </div>
+      <div class="wr-step" data-step="4">
+        <h3>Turn 11 voice measures into 3 scores</h3>
+        <p>The four jitter measures move together, and so do the five shimmer measures. We standardized each measure (a z-score), then averaged within each family to get <code>jitter_score</code>, <code>shimmer_score</code> and <code>noise_score</code>.</p>
+        <p>HNR was flipped because high HNR originally meant a <em>cleaner</em> voice. We did this to have the direction of our measures consistent – <b>a higher score always means a worse voice.</b></p>
+      </div>
+      <div class="wr-step" data-step="5">
+        <h3>Split each score into “usual” and “today”</h3>
+        <p>For the home study, each score becomes two columns. <code>_person</code> is that person's average, based on all their recordings: it represents their usual voice. <code>_diff</code> is one recording minus that participant's average: it represents the day-to-day fluctuations.</p>
+        <p>That is the most important data wrangling choice we made. The first column asks whether people with worse voices have worse symptoms (testing between people). The second asks whether a person's symptoms rise when their own voice gets worse (testing within a person).</p>
+      </div>
+      <div class="wr-step" data-step="6">
+        <h3>One row per person, with progression groups</h3>
+        <p>Age and sex never change between recordings, so questions about them need one row per person. <code>pad_people</code> has each person's average UPDRS and how far their motor score moved from first to last recording.</p>
+        <p>A change of 2.5 points or more counts as non-stable (categorized by worsened or improved). That is the smallest change patients notice, from Shulman et al. (2010). By that rule <b data-n="a2.n_worsened">20</b> people worsened, <b data-n="a2.n_stable">13</b> stayed stable and <b data-n="a2.n_improved">9</b> improved.</p>
+        <div id="wr-people" class="plot" role="img" aria-label="42 dots, one per person, grouped as worsened, stable and improved."></div>
+      </div>
+    </div>
+
+    <div class="tables" id="wr-tables"></div>
+  </div>
+
+  <aside class="pull" aria-hidden="true"><p>A higher score always means a worse voice.</p></aside>
+
+  <details class="stat">
+    <summary>For statisticians</summary>
+    <div>
+      <p>Redundancy check: the largest gap between <code>Jitter:DDP</code> and 3 × <code>Jitter:RAP</code>, in either file, is <span data-n="wr.redundancy">0.00001</span>, which is rounding in the last printed digit. Median DFA among people with PD is <span data-n="wr.dfa_pad">0.644</span> in the home study and <span data-n="wr.dfa_puc">0.727</span> in the Oxford study.</p>
+      <p>Scores are standardised within each dataset, so 0 means “average for that dataset” and a home-study score cannot be compared directly with an Oxford score.</p>
+      <p><b>Two versions of the scores exist in the repo.</b> The wrangling notebook averages z-scores of the raw measures; Aim 4 uses those. The Aim 1 and 2 script logs the skewed measures first and re-standardises the result so that one unit is one standard deviation; Aims 1 and 2 use those. The chapters below say which one they use.</p>
+      <p>Because UPDRS is interpolated, <code>_diff</code> and <code>motor_change</code> rest on only three real measurements per person.</p>
+      <p>Two matches are our best reading, not stated in the documentation: <code>MDVP:PPQ</code> as <code>jitter_ppq5</code> and <code>MDVP:APQ</code> as <code>shimmer_apq11</code>.</p>
+    </div>
+  </details>
+  <details class="code" data-snippet="checks"><summary>R code: the checks</summary></details>
+  <details class="code" data-snippet="clean_pad"><summary>R code: rename and drop, home study</summary></details>
+  <details class="code" data-snippet="clean_puc"><summary>R code: rename and drop, Oxford study</summary></details>
+  <details class="code" data-snippet="voice_scores"><summary>R code: the three voice scores</summary></details>
+  <details class="code" data-snippet="split"><summary>R code: usual level and day-to-day wobble</summary></details>
+  <details class="code" data-snippet="progression"><summary>R code: one row per person and progression groups</summary></details>
+</section>
+<p class="cliff">With each voice split into “usual” and “today”, we can ask the question that matters.</p>
+</article>
+
+<!-- ============================ THE FOUR AIMS ============================ -->
+<article class="chapter" id="aims" data-num="4" data-title="The four aims" data-short="Aims" data-q="Four aims, two datasets. How do they fit together?">
+<section class="cover" aria-labelledby="aims-cover-h">
+  <div class="cover-in">
+    <p class="cover-num" aria-hidden="true">4</p>
+    <h2 class="cover-title" id="aims-cover-h">The four aims</h2>
+    <p class="cover-sub">Four aims, one question: does voice follow a person, or only tell people apart?</p>
+    <div class="cover-fig" data-fig="aims" role="img" aria-label="Aims 1, 2 and 3 in a row for the home study, leading to Aim 4 for the Oxford study."></div>
+    <button type="button" class="cover-go">Continue<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M8 20h22M21 10l10 10-10 10" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  </div>
+</section>
+<section class="part" id="aims-overview">
+  <h2 class="sect"><b class="num" aria-hidden="true">4</b>The four aims</h2>
+  <div class="prose">
+    <p>Our analysis is built around one main question: <b>can voice actually follow a person's Parkinson's over time, or does it only separate people from one another?</b> Each aim tackles a piece of that question, and each uses the method that fits how its data is structured.</p>
+    <p>Aims 1 to 3 use the home study dataset, and Aim 4 uses the Oxford study dataset.</p>
+  </div>
+
+  <figure class="aimmap wide" id="aimmap">
+    <div class="aimmap-grid">
+      <div class="lane-box lane-home">
+        <p class="lane-head">Home telemonitoring study <small><span data-n="pad.people">42</span> people with PD, <span data-n="pad.rows">5,875</span> recordings</small></p>
+        <div class="lane-cards">
+        <a class="aimcard" href="#aim1" data-aim="aim1">
+          <span class="k">Aim 1</span>
+          <span class="q">Which voice measures track UPDRS?</span>
+          <span class="unit">Every recording (<span data-n="pad.rows">5,875</span>)</span>
+          <span class="unit">Mixed-effects model</span>
+          <span class="why">Splits each voice into a usual level (between people) and a day-to-day wobble (within a person).</span>
+        </a>
+        <a class="aimcard" href="#aim2" data-aim="aim2">
+          <span class="k">Aim 2</span>
+          <span class="q">How do age and sex relate to UPDRS?</span>
+          <span class="unit">One row per person (<span data-n="pad.people">42</span>)</span>
+          <span class="unit">Linear regression</span>
+          <span class="why">Checks whether age and sex explain the between-person signal from Aim 1.</span>
+        </a>
+        <a class="aimcard" href="#aim3" data-aim="aim3">
+          <span class="k">Aim 3</span>
+          <span class="q">Can voice predict UPDRS for a new patient?</span>
+          <span class="unit">Every recording, tested one whole person at a time</span>
+          <span class="unit">Leave-one-person-out testing</span>
+          <span class="why">Tests whether voice can score a person the model has never heard.</span>
+        </a>
+        </div>
+      </div>
+      <div class="lane-box lane-oxford">
+        <p class="lane-head">Oxford study <small><span data-n="puc.pd">24</span> with PD, <span data-n="puc.healthy">8</span> healthy, <span data-n="puc.rows">195</span> recordings</small></p>
+        <div class="lane-cards">
+        <a class="aimcard" href="#aim4" data-aim="aim4">
+          <span class="k">Aim 4</span>
+          <span class="q">Do Parkinson's voices differ from healthy voices?</span>
+          <span class="unit">One row per person (<span data-n="puc.people">32</span>)</span>
+          <span class="unit">Wilcoxon test</span>
+          <span class="why">Asks whether the same measures separate PD from healthy.</span>
+        </a>
+        </div>
+      </div>
+    </div>
+    <figcaption>How the aims line up. Pick one to open it below.</figcaption>
+  </figure>
+</section>
+
+<div id="aimtabs-anchor"></div>
+<div class="aimtabs-wrap" id="aimtabs-wrap">
+  <div class="aimtabs" id="aimtabs" role="tablist" aria-label="The four aims">
+    <button type="button" role="tab" id="tab-aim1" aria-controls="aim1" aria-selected="true"><b>Aim 1</b><span>Voice and UPDRS</span></button>
+    <button type="button" role="tab" id="tab-aim2" aria-controls="aim2" aria-selected="false" tabindex="-1"><b>Aim 2</b><span>Age and sex</span></button>
+    <button type="button" role="tab" id="tab-aim3" aria-controls="aim3" aria-selected="false" tabindex="-1"><b>Aim 3</b><span>Prediction</span></button>
+    <button type="button" role="tab" id="tab-aim4" aria-controls="aim4" aria-selected="false" tabindex="-1"><b>Aim 4</b><span>PD vs healthy</span></button>
+  </div>
+</div>
+<div class="aim-panel" id="aim1" role="tabpanel" aria-labelledby="tab-aim1" data-title="Aim 1: voice and UPDRS" data-q="Does a bad voice day mean a bad symptom day?">
+<section class="part">
+  <p class="label">Aim 1: voice and UPDRS</p>
+  <h2>People with a worse usual voice tend to have higher UPDRS. A worse day does not come with a higher score.</h2>
+  <div class="prose">
+    <p>Using all <span data-n="pad.rows">5,875</span> home recordings, we asked two questions.</p>
+    <p><b>Between people:</b> does someone with a worse usual voice have a higher UPDRS?</p>
+    <p><b>Within a person:</b> on days when their voice is worse than their own usual, is their UPDRS higher?</p>
+  </div>
+
+  <div class="scrolly wide" id="forest-scrolly">
+    <div class="scrolly-fig">
+      <figure>
+        <div class="fig-head">
+          <div class="seg" role="group" aria-label="Outcome" data-seg="outcome1">
+            <button type="button" class="on" data-v="Motor UPDRS">Motor UPDRS</button>
+            <button type="button" data-v="Total UPDRS">Total UPDRS</button>
+          </div>
+          <div class="legend" aria-hidden="true">
+            <span><i class="sw" style="background:var(--blue)"></i>Between people</span>
+            <span><i class="sw" style="background:var(--orange)"></i>Within a person</span>
+          </div>
+        </div>
+        <div id="fig-forest" class="plot" role="img" aria-label="Forest plot of between-person and within-person voice effects on UPDRS. The numbers are in the table under For statisticians."></div>
+        <figcaption>UPDRS points per one standard deviation worse voice score. Lines show 95% confidence intervals.</figcaption>
+      </figure>
+    </div>
+    <div class="scrolly-steps">
+      <div class="step" data-step="0">
+        <p><b>Each blue dot</b> compares two people whose usual voices differ by one standard deviation. The person with the worse voice averages about <span data-n="a1.motor.b_min">2.3</span> to <span data-n="a1.motor.b_max">2.7</span> motor points higher.</p>
+        <p>The lines are wide because there are only 42 people. Since every line includes zero, a real link is possible but not proven.</p>
+      </div>
+      <div class="step" data-step="1">
+        <p><b>Each orange dot</b> asks what happens when one person's voice is worse than their own usual.</p>
+        <p>The answer sits near zero. A worse day indicated a UPDRS that is <span data-n="a1.motor.w_min">0.06</span> to <span data-n="a1.motor.w_max">0.11</span> points <em>lower</em>.</p>
+      </div>
+      <div class="step" data-step="2">
+        <p>The within-person values were much smaller than the between-person ones.</p>
+        <p>The data shows voice telling people apart. It does not follow one person's ups and downs.</p>
+      </div>
+    </div>
+  </div>
+
+  <aside class="pull" aria-hidden="true"><p>Voice tells people apart. In this data it does not follow one person's ups and downs.</p></aside>
+
+  <div class="prose">
+    <h3>Why the within-person effect is near zero</h3>
+    <p>Pick any person. Their voice scores jump around from week to week. Their UPDRS does not, because it was only scored at three clinic visits and filled in with straight lines.</p>
+  </div>
+
+  <figure class="wide" id="patient">
+    <div class="fig-head">
+      <div class="picker">
+        <button type="button" class="pill icon" id="pt-prev" aria-label="Previous person">‹</button>
+        <label class="sr-only" for="pt-select">Person</label>
+        <select id="pt-select"></select>
+        <button type="button" class="pill icon" id="pt-next" aria-label="Next person">›</button>
+      </div>
+      <div class="seg" role="group" aria-label="Voice score" data-seg="ptscore">
+        <button type="button" data-v="jitter">Jitter</button>
+        <button type="button" class="on" data-v="shimmer">Shimmer</button>
+        <button type="button" data-v="noise">Noise</button>
+      </div>
+    </div>
+    <div id="fig-patient" class="plot" role="img" aria-label="Two stacked panels for one person: voice score for every recording, and motor UPDRS over six months."></div>
+    <figcaption id="pt-caption" aria-live="polite"></figcaption>
+  </figure>
+
+  <details class="stat">
+    <summary>For statisticians</summary>
+    <div>
+      <p>One linear mixed model per outcome and voice score, fitted with <code>lmerTest::lmer</code>: <code>UPDRS ~ score_person + score_diff + months + (1 | subject)</code>. A random intercept per person and Benjamini–Hochberg correction across the 12 tests. <b data-n="a1.nsig">0</b> of the 12 effects have an adjusted p below 0.05.</p>
+      <p>Scores here are the logged versions from <code>aims_1_2_slides.R</code>, re-standardised so one unit is one SD across all recordings. About <span data-n="a1.icc_motor">92%</span> of the variation in motor UPDRS is between people (intraclass correlation from an intercept-only model).</p>
+      <p>The within-person noise effect is small and negative with an unadjusted interval that excludes zero; after correction its adjusted p is <span data-n="a1.motor.noise.w_padj">0.064</span>. The per-person correlations in the chart above use session averages and motor UPDRS (Spearman).</p>
+      <div data-table="aim1"></div>
+    </div>
+  </details>
+  <details class="code" data-snippet="aim1_scores"><summary>R code: scores used in Aims 1 and 2</summary></details>
+  <details class="code" data-snippet="aim1_models"><summary>R code: the mixed models</summary></details>
+</section>
+<p class="cliff">If voice mostly tells people apart, what else is different about those people?</p>
+</div>
+<div class="aim-panel" id="aim2" role="tabpanel" aria-labelledby="tab-aim2" data-title="Aim 2: age and sex" data-q="Is some of the voice signal really age?">
+<section class="part">
+  <p class="label">Aim 2: age and sex</p>
+  <h2>Older people tended to have higher UPDRS. Men and women looked alike.</h2>
+  <div class="prose">
+    <p>Age and sex do not change between recordings, so here each of the 42 people counts once, using their average UPDRS.</p>
+  </div>
+
+  <figure class="wide">
+    <div class="fig-head">
+      <div class="seg" role="group" aria-label="Outcome" data-seg="outcome2">
+        <button type="button" class="on" data-v="motor">Motor UPDRS</button>
+        <button type="button" data-v="total">Total UPDRS</button>
+      </div>
+      <div class="legend" aria-hidden="true">
+        <span><svg class="sw-svg" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5.5" fill="var(--teal)"/></svg>Men (<span data-n="a2.n_men">28</span>)</span>
+        <span><svg class="sw-svg" viewBox="0 0 14 14"><rect x="2.5" y="2.5" width="9" height="9" transform="rotate(45 7 7)" fill="var(--amber)"/></svg>Women (<span data-n="a2.n_women">14</span>)</span>
+      </div>
+    </div>
+    <div id="fig-age" class="plot" role="img" aria-label="Scatter plot of each person's average UPDRS against age, by sex, with the fitted regression lines."></div>
+    <figcaption id="age-caption" aria-live="polite"></figcaption>
+  </figure>
+
+  <div class="prose">
+    <p><b>Age.</b> Each extra decade went with <b data-n="a2.motor.age10">+2.5</b> motor points (p = <span data-n="a2.motor.age_p">0.06</span>) and <b data-n="a2.total.age10">+3.7</b> total points (p = <span data-n="a2.total.age_p">0.035</span>). Older age is significantly linked to a higher total UPDRS; for motor UPDRS, the link falls just short of significance.</p>
+    <p><b>Sex.</b> At the same age, men scored <span data-n="a2.motor.sex">+0.6</span> motor points (p = <span data-n="a2.motor.sex_p">0.81</span>) and <span data-n="a2.total.sex">+2.2</span> total points (p = <span data-n="a2.total.sex_p">0.50</span>) higher than women. Sex was not significantly associated with either score, though with only <span data-n="a2.n_women">14</span> women the study had little power to detect a difference.</p>
+
+    <h3>Who got worse over six months?</h3>
+    <p>We compared each person's last motor score with their first. A change of at least 2.5 points is the smallest that patients notice, so that is our cut-off: <b data-n="a2.n_worsened">20</b> worsened, <b data-n="a2.n_stable">13</b> stayed stable and <b data-n="a2.n_improved">9</b> improved. The improved group was younger, with a median age of <span data-n="a2.med_improved">59</span> against <span data-n="a2.med_stable">65</span> and <span data-n="a2.med_worsened">66</span>, though with groups this small that gap could be chance.</p>
+    <p>The groups depend on where you draw the line. Move it and watch the 42 people re-sort.</p>
+  </div>
+
+  <figure class="wide" id="prog">
+    <div class="fig-head slider-head">
+      <label for="mcid">Cut-off for a real change: <output id="mcid-out">2.5</output> points</label>
+      <input type="range" id="mcid" min="0.5" max="6" step="0.1" value="2.5">
+      <button type="button" class="pill" id="mcid-reset">Back to 2.5</button>
+    </div>
+    <div class="legend counts" id="prog-counts" aria-live="polite"></div>
+    <div id="fig-prog" class="plot" role="img" aria-label="Top: change in motor UPDRS for each of 42 people, sorted. Bottom: ages of the people in each progression group."></div>
+    <figcaption>Top: each stem is one person's change in motor UPDRS, being the last recording minus first. The shaded band is “no real change”. Bottom: the same people by age, with each group's median marked.</figcaption>
+  </figure>
+
+  <div class="prose">
+    <h3>A bridge back to Aim 1</h3>
+    <p>If older people have higher UPDRS, and older voices are also less steady, then some of the voice signal in Aim 1 may really be age. Shimmer is the score most tied to age (r = <span data-n="a2.r_shimmer">0.31</span>). Once age and sex are in the model, every between-person voice effect shrinks.</p>
+  </div>
+  <figure>
+    <div class="legend" aria-hidden="true">
+      <span><i class="sw" style="background:var(--blue)"></i>Voice alone</span>
+      <span><i class="sw" style="background:#9DBDE6"></i>Voice, with age and sex</span>
+    </div>
+    <div id="fig-bridge" class="plot" role="img" aria-label="Between-person voice effect on motor UPDRS before and after adjusting for age and sex."></div>
+    <figcaption>Motor UPDRS points per one standard deviation worse usual voice, 42 people.</figcaption>
+  </figure>
+
+  <aside class="pull" aria-hidden="true"><p>Once age and sex are in the model, every between-person voice effect shrinks.</p></aside>
+
+  <details class="stat">
+    <summary>For statisticians</summary>
+    <div>
+      <p>Ordinary least squares on one row per person (n = 42): <code>mean UPDRS ~ age + sex</code>. The lines in the scatter are that model's fitted values for men and women. R² is <span data-n="a2.motor.r2">0.09</span> for motor and <span data-n="a2.total.r2">0.12</span> for total.</p>
+      <p>Unadjusted, men averaged <span data-n="a2.mean_men">21.3</span> motor points and women <span data-n="a2.mean_women">20.3</span> (Welch t-test p = <span data-n="a2.ttest_p">0.73</span>). Age across the three progression groups: Kruskal–Wallis p = <span data-n="a2.kw_p">0.52</span>.</p>
+      <p>The slider recomputes the groups with the same rule as the wrangling notebook for cut-offs from 0.5 to 6.0; counts, medians and the Kruskal–Wallis p-value at each cut-off come from <code>export.R</code>. Correlations of usual voice with age: jitter <span data-n="a2.r_jitter">0.18</span>, shimmer <span data-n="a2.r_shimmer">0.31</span>, noise <span data-n="a2.r_noise">0.18</span> (Pearson, logged scores).</p>
+      <div data-table="aim2"></div>
+    </div>
+  </details>
+  <details class="code" data-snippet="aim2_models"><summary>R code: regression, t-test and Kruskal–Wallis</summary></details>
+  <details class="code" data-snippet="aim2_voice"><summary>R code: voice effect before and after age and sex</summary></details>
+</section>
+<p class="cliff">Links are one thing. Can voice actually predict a person's score?</p>
+</div>
+<div class="aim-panel" id="aim3" role="tabpanel" aria-labelledby="tab-aim3" data-title="Aim 3: prediction" data-q="Can a model score a patient it has never heard?">
+<section class="part">
+  <p class="label">Aim 3: prediction</p>
+  <h2>For a person the model has never heard, voice predicted UPDRS no better than guessing the average.</h2>
+  <div class="prose">
+    <p>We trained three models to predict UPDRS from the 11 voice measures: a <b>mean baseline</b> (that ignores voice and always guesses the average), a <b>linear regression</b> and a <b>random forest</b>.</p>
+    <p>Each column below is one person, and each sliver is one of their recordings. Coloured slivers are held back for testing; grey ones train the model.</p>
+  </div>
+
+  <figure class="wide" id="cv">
+    <div class="fig-head">
+      <div class="seg" role="group" aria-label="Test design" data-seg="cv">
+        <button type="button" data-v="Random rows">Random rows</button>
+        <button type="button" class="on" data-v="New person">New person</button>
+      </div>
+      <button type="button" class="pill" id="cv-play" aria-pressed="true">Pause</button>
+      <button type="button" class="pill" id="cv-step">Next round</button>
+    </div>
+    <canvas id="fig-cv" role="img" aria-label="42 columns of recordings. In the random-rows design, test recordings are scattered through every person. In the new-person design, one whole person is held out each round."></canvas>
+    <figcaption id="cv-caption" aria-live="polite"></figcaption>
+  </figure>
+
+  <div class="prose">
+    <p><b>Random rows</b> shuffles all the recordings and picks them at random, so the same people show up in both training and testing. The model can recognize each person’s voice and recall their score, which makes it look more accurate than it really is.</p>
+    <p><b>New person</b> holds out everyone's recordings in turn: train on 41 people, test on the 42nd, repeat 42 times.</p>
+  </div>
+
+  <div class="scrolly wide" id="mae-scrolly">
+    <div class="scrolly-fig">
+      <figure>
+        <div class="fig-head">
+          <div class="seg" role="group" aria-label="Outcome" data-seg="outcome3">
+            <button type="button" class="on" data-v="Motor UPDRS">Motor UPDRS</button>
+            <button type="button" data-v="Total UPDRS">Total UPDRS</button>
+          </div>
+          <div class="legend" aria-hidden="true">
+            <span><i class="sw" style="background:var(--blue)"></i>Random rows</span>
+            <span><i class="sw" style="background:var(--orange)"></i>New person</span>
+          </div>
+        </div>
+        <div id="fig-mae" class="plot" role="img" aria-label="Grouped bar chart of mean absolute error for three models under two test designs. The numbers are in the table under For statisticians."></div>
+        <figcaption>Average miss in UPDRS points (mean absolute error). Lower is better.</figcaption>
+      </figure>
+    </div>
+    <div class="scrolly-steps">
+      <div class="step" data-step="0">
+        <p><b>With random rows, voice looks useful.</b> On average, the random forest's predictions are off by <span data-n="a3.motor.rand.rf">5.90</span> motor UPDRS points, which is better than just guessing the average (<span data-n="a3.motor.rand.base">6.96</span>).</p>
+      </div>
+      <div class="step" data-step="1">
+        <p><b>Tested on new people, the advantage is gone.</b> The same random forest now misses by <span data-n="a3.motor.new.rf">7.31</span> points.</p>
+      </div>
+      <div class="step" data-step="2">
+        <p><b>Guessing the average does better.</b> The no-voice baseline misses by <span data-n="a3.motor.new.base">7.12</span>. Linear regression (<span data-n="a3.motor.new.lm">7.27</span>) and the random forest (<span data-n="a3.motor.new.rf">7.31</span>) are both worse, and the same holds for total UPDRS.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats trio wide" id="mae-stats">
+    <div class="stat"><b class="count" data-n="a3.motor.rand.rf">5.90</b><span class="stat-lab">Random forest, tested on random rows</span></div>
+    <div class="stat hot"><b class="count" data-n="a3.motor.new.rf">7.31</b><span class="stat-lab">The same forest, tested on new people</span></div>
+    <div class="stat"><b class="count" data-n="a3.motor.new.base">7.12</b><span class="stat-lab">Guessing the average, for new people</span></div>
+  </div>
+  <p class="stats-cap wide">Average miss in motor UPDRS points. Lower is better.</p>
+
+  <div class="prose">
+    <h3>What the random forest actually learned</h3>
+    <p>If the model were perfect, every dot would sit on the diagonal. With random rows, the dots come close, but only because the model recognizes familiar voices. With new people, the dots flatten into a line: everyone gets roughly the same guess.</p>
+  </div>
+  <figure class="wide">
+    <div id="fig-pred" class="plot" role="img" aria-label="Two scatter plots of predicted against actual UPDRS per person, for random rows and for new people."></div>
+    <figcaption>Random forest, one dot per person. The diagonal is a perfect prediction. The outcome follows the switch in the chart above.</figcaption>
+  </figure>
+  <div class="prose">
+    <p><b>How this compares to the original study.</b> Using the original study’s test, our model matches their accuracy (<span data-n="a3.total.rand.rf">7.47</span> vs. about 7.5). But that test reused people the model had already heard. For a new person, the model does worse than guessing the average (<span data-n="a3.total.new.rf">9.29</span> vs. <span data-n="a3.total.new.base">8.86</span>).</p>
+  </div>
+
+  <details class="stat">
+    <summary>For statisticians</summary>
+    <div>
+      <p>Predictors: the 11 voice measures, with the ten other than HNR logged. Random rows: 5 shuffled folds of recordings. New person: leave-one-subject-out, 42 folds. Random forest: <code>ranger</code>, 200 trees, <code>mtry = 3</code>, minimum node size 5, seed 2026. In the random split every person has at least <span data-n="a3.min_share">71%</span> of their recordings in the training folds.</p>
+      <p>MAE weights recordings equally. The equal-person MAE (average within person first) gives the same ordering. These are point estimates with no test of the difference between models, and the result describes these models, not every possible voice model.</p>
+      <div data-table="aim3"></div>
+    </div>
+  </details>
+  <details class="code" data-snippet="aim3_data"><summary>R code: predictors and folds</summary></details>
+  <details class="code" data-snippet="aim3_models"><summary>R code: fitting and testing the models</summary></details>
+  <details class="code" data-snippet="aim3_errors"><summary>R code: the errors</summary></details>
+</section>
+<p class="cliff">For a stranger, these models did no better than a guess. Can voice at least tell a patient from a healthy person?</p>
+</div>
+<div class="aim-panel" id="aim4" role="tabpanel" aria-labelledby="tab-aim4" data-title="Aim 4: PD vs healthy" data-q="Do Parkinson's voices differ from healthy ones?">
+<section class="part">
+  <p class="label">Aim 4: PD versus healthy</p>
+  <h2>Voices of people with Parkinson's score worse on average, but a group difference is not an individual diagnosis.</h2>
+  <div class="prose">
+    <p>The Oxford study lets us compare <span data-n="puc.pd">24</span> people with PD against <span data-n="puc.healthy">8</span> healthy people. Each person's recordings are averaged first, so everyone counts once.</p>
+  </div>
+
+  <figure class="wide">
+    <div class="legend" aria-hidden="true">
+      <span><i class="sw" style="background:var(--blue)"></i>Healthy (<span data-n="puc.healthy">8</span>)</span>
+      <span><i class="sw" style="background:var(--orange)"></i>Parkinson's (<span data-n="puc.pd">24</span>)</span>
+      <span><i class="sw band"></i>Range of the healthy group</span>
+    </div>
+    <div id="fig-aim4" class="plot" role="img" aria-label="Box plots with individual points comparing healthy people and people with Parkinson's on jitter, shimmer and noise scores. The numbers are in the table under For statisticians."></div>
+    <figcaption>One dot per person. Higher means a worse voice; 0 is the average recording in this dataset. Boxes show the middle half of each group and the line inside is the median.</figcaption>
+  </figure>
+
+  <div class="prose">
+    <p>On all three scores the PD group sits higher, and the differences hold up after correcting for running three tests: adjusted p = <b data-n="a4.p_jitter">0.021</b> for jitter, <b data-n="a4.p_shimmer">0.020</b> for shimmer and <b data-n="a4.p_noise">0.043</b> for noise.</p>
+    <p>The shaded bands signal something interesting. <b data-n="a4.overlap_jitter">15</b> of the <span data-n="puc.pd">24</span> people with PD have a jitter score inside the healthy group's range, <span data-n="a4.overlap_shimmer">10</span> for shimmer and <span data-n="a4.overlap_noise">21</span> for noise. Knowing someone’s score would not reliably tell you whether they’re healthy or have PD. The groups differ; the individuals overlap.</p>
+  </div>
+
+  <aside class="pull" aria-hidden="true"><p>The groups differ; the individuals overlap.</p></aside>
+
+  <details class="stat">
+    <summary>For statisticians</summary>
+    <div>
+      <p>Two-sided Wilcoxon rank-sum tests with continuity correction, on one mean score per person (n = 32), Benjamini–Hochberg corrected across the three scores. The rank-biserial effect size runs from −1 to 1; positive means the PD group ranks higher. Scores are the wrangling notebook's averages of z-scored raw measures.</p>
+      <p>These are unadjusted comparisons. The Oxford file has no age or sex, so we cannot check whether those explain part of the gap, and 8 healthy people is a small group.</p>
+      <div data-table="aim4"></div>
+    </div>
+  </details>
+  <details class="code" data-snippet="aim4_people"><summary>R code: one row per person</summary></details>
+  <details class="code" data-snippet="aim4_tests"><summary>R code: Wilcoxon tests and correction</summary></details>
+</section>
+<p class="cliff">Four aims, four answers. What do they add up to?</p>
+</div>
+</article>
+
+<!-- ============================ CONCLUSION ============================ -->
+<article class="chapter" id="conclusion" data-num="5" data-title="Conclusion" data-short="Conclusion" data-q="What does it all add up to?">
+<section class="cover" aria-labelledby="conclusion-cover-h">
+  <div class="cover-in">
+    <p class="cover-num" aria-hidden="true">5</p>
+    <h2 class="cover-title" id="conclusion-cover-h">Conclusion</h2>
+    <p class="cover-sub">Voice separates people better than it tracks one person over time.</p>
+    <div class="cover-fig" data-fig="two" role="img" aria-label="Two sketches: between people, several different usual voice levels; within a person, one voice wobbling around its own usual level."></div>
+    <button type="button" class="cover-go">Continue<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M8 20h22M21 10l10 10-10 10" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  </div>
+</section>
+<section class="part" id="meaning">
+  <h2 class="sect"><b class="num" aria-hidden="true">5</b>Conclusion</h2>
+    <div class="payoff wide" id="payoff">
+    <p class="payoff-you" id="payoff-you">At the start we asked: could a home “ahhh” recording replace the clinic exam?</p>
+    <p class="payoff-found">Here's what we found.</p>
+  </div>
+  <div class="prose">
+    <ul class="findings">
+      <li><b>Between people, there is a signal.</b> People with PD have less steady voices than healthy people (Aim 4), and among people with PD a worse usual voice leans towards a higher UPDRS (Aim 1).</li>
+      <li><b>Within a person, there is no signal.</b> A worse voice day did not come with a higher UPDRS (Aim 1), and voice could not predict the score of someone the model had never heard (Aim 3).</li>
+      <li><b>Age is influential.</b> Older people had higher UPDRS, and the voice effect shrank once age was accounted for (Aim 2).</li>
+    </ul>
+
+    <h3>Limits to keep in mind</h3>
+    <ul>
+      <li><b>UPDRS was scored at only 3 visits</b> and filled in between with straight lines, so the within-person result may understate what voice can do.</li>
+      <li><b>The samples are small:</b> <span data-n="pad.people">42</span> people with PD in one study, and only <span data-n="puc.healthy">8</span> healthy people in the other.</li>
+      <li><b>These are associations, not causes.</b> Things we could not measure, such as fatigue or the recording setting, may play a part.</li>
+    </ul>
+
+    <p>We hope this gives an honest picture of what voice can and can't do before anyone relies on it for patient care.</p>
+  </div>
+
+  <aside class="pull" aria-hidden="true"><p>A signal is not a diagnosis.</p></aside>
+</section>
+<p class="cliff">Every result here can be rebuilt from the raw files. Here is how.</p>
+</article>
+
+<!-- ============================ REPRODUCE IT AND CREDITS ============================ -->
+<article class="chapter" id="reproduce" data-num="" data-title="Reproduce it and credits" data-short="Reproduce" data-q="Want to check our numbers yourself?">
+<section class="part">
+  <p class="label">Reproduce it</p>
+  <h2>Three scripts and one seed rebuild every result on this page.</h2>
+  <div class="prose">
+    <p>Everything is in the <a href="https://github.com/linethan04/Parkinson-s">GitHub repository</a>, including both raw data files. Install the R packages once, then open <code>Parkinson-s.Rproj</code> in RStudio. All paths start from that folder.</p>
+    <pre class="plain"><code>install.packages(c("tidyverse", "lmerTest", "patchwork", "ggrepel",
+                   "ranger", "ragg", "rmarkdown"))</code></pre>
+    <ol class="runorder">
+      <li><a href="https://github.com/linethan04/Parkinson-s/blob/main/scripts/aims_1_2_slides.R"><code>scripts/aims_1_2_slides.R</code></a><span>Aim 1 mixed models and Aim 2 regression, t-test and Kruskal–Wallis. Run it with <code>source()</code>; it takes about 20 seconds.</span></li>
+      <li><a href="https://github.com/linethan04/Parkinson-s/blob/main/scripts/PD.PROJECT.Rmd"><code>scripts/PD.PROJECT.Rmd</code></a><span>Knit it. Cleans both datasets, builds the scores, the usual-versus-today split and the progression groups, and saves the cleaned files to <code>data/</code>.</span></li>
+      <li><a href="https://github.com/linethan04/Parkinson-s/blob/main/scripts/Aims_3_and_4.Rmd"><code>scripts/Aims_3_and_4.Rmd</code></a><span>Knit it after <code>PD.PROJECT.Rmd</code>. Aim 3 prediction and Aim 4 group comparison. Takes a few minutes.</span></li>
+    </ol>
+    <p class="note">The repository also has <a href="https://github.com/linethan04/Parkinson-s/blob/main/scripts/pd_figures.R"><code>scripts/pd_figures.R</code></a>, which makes the 13 final figures for our report in about 90 seconds. The numbers on this page do not depend on it.</p>
+    <p>Random steps use <b>seed 2026</b>, so a re-run gives the same numbers.</p>
+    <p>To rebuild the data behind this page in one go, run <code>Rscript scripts/export.R</code> from the project root. It repeats the same analysis code from the raw files and writes the JSON in <code>docs/data/</code> that every chart here is drawn from. It needs one more package, <code>jsonlite</code>.</p>
+    <p class="source" id="build-info"></p>
+  </div>
+</section>
+<section class="part" id="credits">
+  <p class="label">Credits</p>
+  <h2>Made by Jason Spino, Ethan Lin and Kwaku Darkwah.</h2>
+  <div class="prose">
+    <p>Final project for Data Wrangling, MS in Health Data Science, Dartmouth.</p>
+    <h3>References</h3>
+    <ol class="refs">
+      <li>Tsanas A, Little MA, McSharry PE, Ramig LO. Accurate telemonitoring of Parkinson's disease progression by noninvasive speech tests. <i>IEEE Trans Biomed Eng.</i> 2010;57(4):884–893. <a href="https://doi.org/10.1109/TBME.2009.2036000">doi:10.1109/TBME.2009.2036000</a></li>
+      <li>Tsanas A, Little MA, McSharry PE, Ramig LO. Nonlinear speech analysis algorithms mapped to a standard metric achieve clinically useful quantification of average Parkinson's disease symptom severity. <i>J R Soc Interface.</i> 2011;8(59):842–855. <a href="https://doi.org/10.1098/rsif.2010.0456">doi:10.1098/rsif.2010.0456</a></li>
+      <li>Little MA, McSharry PE, Hunter EJ, Spielman J, Ramig LO. Suitability of dysphonia measurements for telemonitoring of Parkinson's disease. <i>IEEE Trans Biomed Eng.</i> 2009;56(4):1015–1022. <a href="https://doi.org/10.1109/TBME.2008.2005954">doi:10.1109/TBME.2008.2005954</a></li>
+      <li>Shulman LM, Gruber-Baldini AL, Anderson KE, et al. The clinically important difference on the Unified Parkinson's Disease Rating Scale. <i>Arch Neurol.</i> 2010;67(1):64–70. <a href="https://doi.org/10.1001/archneurol.2009.295">doi:10.1001/archneurol.2009.295</a></li>
+    </ol>
+    <h3>Data</h3>
+    <ul class="refs">
+      <li>Tsanas A, Little MA. Parkinsons Telemonitoring [Dataset]. UCI Machine Learning Repository; 2009. <a href="https://doi.org/10.24432/C5ZS3N">doi:10.24432/C5ZS3N</a></li>
+      <li>Little MA. Parkinsons [Dataset]. UCI Machine Learning Repository; 2007. <a href="https://doi.org/10.24432/C59C74">doi:10.24432/C59C74</a></li>
+    </ul>
+    <h3>AI use</h3>
+    <p>Claude (Anthropic) helped write and debug the R code and outline the slides; we reviewed and verified all analyses and conclusions. This website was built with Claude Fable 5.2 and Claude Opus 5.5, which turned our analysis and ideas into the site; we wrote, reviewed and edited all of its text and statistics.</p>
+    <p class="source">Charts drawn with <a href="https://d3js.org">D3</a>.</p>
+  </div>
+</section>
+</article>
+
+</main>
+
+<div id="tooltip" role="status" aria-live="off"></div>
+<div id="announce" class="sr-only" aria-live="polite"></div>
+<noscript><p class="noscript">The charts on this page need JavaScript. The text and the numbers in it are complete without it.</p></noscript>
+
+<script src="vendor/d3.min.js"></script>
+<script src="data/data.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
