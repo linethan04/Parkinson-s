@@ -8,3 +8,5 @@ Rplots.pdf
 data/pad_clean.csv
 data/puc_clean.csv
 data/pad_people.csv
+# Keep the website's page (every other .html file stays ignored)
+!docs/index.html
