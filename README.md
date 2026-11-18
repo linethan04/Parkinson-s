@@ -64,9 +64,10 @@ We used Claude (Anthropic) to help debug the R code and to build the interactive
 
 ## Project website
 
-An interactive version of this project, with the four aims, charts and code, is in [@docs/](docs/) and published with GitHub Pages at **https://linethan04.github.io/Parkinson-s/**.
+**Open it here: https://linethan04.github.io/Parkinson-s/**
 
-- **View it locally:** double-click `docs/index.html`, or run `python3 -m http.server` inside `docs/` and open http://localhost:8000.
-- **Rebuild its data:** every number and chart on the site comes from `docs/data/`, which `Rscript scripts/export.R` writes from the raw data files (run from the project root; needs `jsonlite` as well as the packages above). It reruns the same analysis code as the scripts and checks itself against [@output/aims_3_4/](output/aims_3_4/).
-- **One-file copy:** `python3 scripts/build_single_html.py` writes `dist/parkinsons-voice-site.html`, the whole site in one file that opens offline.
-- **Publishing:** in the repository's Settings → Pages, set Source to "Deploy from a branch", branch `main`, folder `/docs`. GitHub Pages is free for public repositories.
+The website is an interactive version of this project: the four aims, charts you can hover over, and the R code behind each result. It works in any browser, with no sign-in or install.
+
+**Offline:** download or clone this repository and double-click [@docs/index.html](docs/index.html). It opens in your browser without internet.
+
+**Where it comes from:** the site's files are in [@docs/](docs/). All its numbers and charts are read from [@docs/data/](docs/data/), which [@scripts/export.R](scripts/export.R) writes from the raw data. To refresh them after changing the analysis, run `Rscript scripts/export.R` from the project folder (needs `jsonlite` as well as the packages above).
